@@ -13,9 +13,12 @@ import (
 	"time"
 
 	"github.com/HMasataka/cloudia/internal/admin"
+	"github.com/HMasataka/cloudia/internal/auth"
 	"github.com/HMasataka/cloudia/internal/config"
 	"github.com/HMasataka/cloudia/internal/gateway"
 	"github.com/HMasataka/cloudia/internal/logging"
+	"github.com/HMasataka/cloudia/internal/protocol"
+	"github.com/HMasataka/cloudia/internal/service"
 )
 
 // randomPort は利用可能なランダムポートを返します。
@@ -48,7 +51,11 @@ func TestIntegration_GatewayServer(t *testing.T) {
 
 	// c. サーバー構築
 	adminHandler := admin.NewHandler(nil, logger)
-	router := gateway.NewRouter(adminHandler, logger, cfg.Server.Timeout)
+	verifiers := map[string]auth.Verifier{}
+	codecs := map[string]protocol.Codec{}
+	registry := service.NewRegistry()
+	serviceHandler := gateway.NewServiceHandler(verifiers, codecs, registry, logger)
+	router := gateway.NewRouter(adminHandler, serviceHandler, logger, cfg.Server.Timeout)
 	server := gateway.NewServer(cfg.Server, cfg.Endpoints, router, logger)
 
 	// d. サーバー起動
