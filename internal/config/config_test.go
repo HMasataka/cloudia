@@ -67,6 +67,20 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.State.ReconciliationInterval != 30*time.Second {
 		t.Errorf("State.ReconciliationInterval = %v, want %v", cfg.State.ReconciliationInterval, 30*time.Second)
 	}
+	if cfg.State.LockTimeout != 30*time.Second {
+		t.Errorf("State.LockTimeout = %v, want %v", cfg.State.LockTimeout, 30*time.Second)
+	}
+
+	// Ports defaults
+	if cfg.Ports.RangeStart != 10000 {
+		t.Errorf("Ports.RangeStart = %d, want %d", cfg.Ports.RangeStart, 10000)
+	}
+	if cfg.Ports.RangeEnd != 20000 {
+		t.Errorf("Ports.RangeEnd = %d, want %d", cfg.Ports.RangeEnd, 20000)
+	}
+	if cfg.Ports.MaxPerResource != 10 {
+		t.Errorf("Ports.MaxPerResource = %d, want %d", cfg.Ports.MaxPerResource, 10)
+	}
 
 	// Cleanup defaults
 	if cfg.Cleanup.TTLEnabled {
@@ -111,6 +125,11 @@ state:
   backend: "file"
   file_path: "/tmp/state.json"
   reconciliation_interval: 60s
+  lock_timeout: 45s
+ports:
+  range_start: 30000
+  range_end: 40000
+  max_per_resource: 5
 cleanup:
   ttl_enabled: true
   default_ttl: 48h
@@ -162,6 +181,18 @@ metrics:
 	}
 	if cfg.State.ReconciliationInterval != 60*time.Second {
 		t.Errorf("State.ReconciliationInterval = %v, want %v", cfg.State.ReconciliationInterval, 60*time.Second)
+	}
+	if cfg.State.LockTimeout != 45*time.Second {
+		t.Errorf("State.LockTimeout = %v, want %v", cfg.State.LockTimeout, 45*time.Second)
+	}
+	if cfg.Ports.RangeStart != 30000 {
+		t.Errorf("Ports.RangeStart = %d, want %d", cfg.Ports.RangeStart, 30000)
+	}
+	if cfg.Ports.RangeEnd != 40000 {
+		t.Errorf("Ports.RangeEnd = %d, want %d", cfg.Ports.RangeEnd, 40000)
+	}
+	if cfg.Ports.MaxPerResource != 5 {
+		t.Errorf("Ports.MaxPerResource = %d, want %d", cfg.Ports.MaxPerResource, 5)
 	}
 	if !cfg.Cleanup.TTLEnabled {
 		t.Errorf("Cleanup.TTLEnabled = false, want true")

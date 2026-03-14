@@ -25,29 +25,29 @@ CLI → Gateway → Auth (SigV4/OAuth) → Protocol (XML/JSON変換) → Service
 **ゴール**: Go プロジェクト初期化、設定管理、ログ、Docker クライアントラッパーが動作する。`cloudia start` で HTTP サーバーが起動し `/health` に 200 を返す
 **完動品としての価値**: 開発者が `cloudia start` を実行してサーバーが起動し、ヘルスチェックで生存確認できる。後続マイルストーンの土台
 
-- [ ] Go モジュール初期化（既存リポジトリ内で `go mod init`）とディレクトリ構成作成（`cmd/cloudia/`, `internal/cli/`, `internal/config/`, `internal/gateway/`, `internal/gateway/middleware/`, `internal/auth/`, `internal/protocol/`, `internal/service/`, `internal/backend/`, `internal/state/`, `internal/resource/`, `internal/network/`, `internal/admin/`, `pkg/models/`, `configs/`）
-- [ ] `cmd/cloudia/main.go`: cobra root コマンドのエントリポイント
-- [ ] 設定管理 (`internal/config/config.go`, `defaults.go`): viper による YAML/環境変数/フラグ統合。ServerConfig, LimitsConfig, DockerConfig, StateConfig, CleanupConfig, LoggingConfig, MetricsConfig, AWSConfig, GCPConfig 構造体定義
-- [ ] `configs/default.yaml`: デフォルト設定ファイル（host: 127.0.0.1, port: 4566, max_containers: 20 等）
-- [ ] ロギング: zap ロガー初期化（設定の logging.level, logging.format に基づく）
-- [ ] Docker クライアントラッパー (`internal/backend/docker/client.go`): NewClient(), Close(), Ping()
-- [ ] Docker コンテナ操作 (`internal/backend/docker/container.go`): RunContainer(), StopContainer(), ListManagedContainers()
-- [ ] Docker ネットワーク・ボリューム・イメージ管理 (`network.go`, `volume.go`, `image.go`)
-- [ ] Docker ラベル管理 (`labels.go`): `cloudia.managed=true` ラベル付与
-- [ ] Docker イベント監視 (`events.go`): WatchEvents() でコンテナ状態変更をコールバック通知
-- [ ] Docker 孤立リソース削除 (`CleanupOrphans()`)
-- [ ] CLI `start` コマンド (`internal/cli/start.go`): 設定読み込み → ロガー初期化 → Docker 接続確認（未起動時は明確なエラーメッセージ） → HTTP サーバー起動 → SIGINT/SIGTERM で graceful shutdown
-- [ ] CLI `stop` コマンド (`internal/cli/stop.go`): PID ファイル経由で停止シグナル送信
-- [ ] CLI `status` コマンド (`internal/cli/status.go`): ヘルスチェック API への問い合わせ
-- [ ] CLI `cleanup` コマンド (`internal/cli/cleanup.go`): 管理下 Docker リソースの全削除
-- [ ] Gateway 基本構造 (`internal/gateway/server.go`): net/http サーバー起動・停止、localhost のみバインド（127.0.0.1）
-- [ ] Gateway ルーター (`internal/gateway/router.go`): detectProvider() のスタブ、未対応リクエストへのエラーレスポンス
-- [ ] ミドルウェア (`internal/gateway/middleware/`): logging.go（アクセスログ）, recovery.go（パニックリカバリ）, timeout.go（リクエストタイムアウト）
-- [ ] 管理 API (`internal/admin/health.go`): GET /health → `{"status": "ok"}`
-- [ ] 管理 API (`internal/admin/admin.go`): GET /admin/services → 登録済みサービス一覧（空配列）
-- [ ] 共通モデル (`pkg/models/resource.go`): Resource 基底型（Kind, ID, Provider, Service, Region, Tags, Spec, Status, CreatedAt, UpdatedAt, ContainerID, TTL）
-- [ ] 共通エラー (`pkg/models/errors.go`): ErrNotFound, ErrAlreadyExists, ErrLimitExceeded, ErrServiceUnavailable, ErrUnsupportedOperation
-- [ ] テスト: `cloudia start` → `/health` に 200 が返る → `cloudia stop` で正常終了する統合テスト
+- [x] Go モジュール初期化（既存リポジトリ内で `go mod init`）とディレクトリ構成作成（`cmd/cloudia/`, `internal/cli/`, `internal/config/`, `internal/gateway/`, `internal/gateway/middleware/`, `internal/auth/`, `internal/protocol/`, `internal/service/`, `internal/backend/`, `internal/state/`, `internal/resource/`, `internal/network/`, `internal/admin/`, `pkg/models/`, `configs/`）
+- [x] `cmd/cloudia/main.go`: cobra root コマンドのエントリポイント
+- [x] 設定管理 (`internal/config/config.go`, `defaults.go`): viper による YAML/環境変数/フラグ統合。ServerConfig, LimitsConfig, DockerConfig, StateConfig, CleanupConfig, LoggingConfig, MetricsConfig, AWSConfig, GCPConfig 構造体定義
+- [x] `configs/default.yaml`: デフォルト設定ファイル（host: 127.0.0.1, port: 4566, max_containers: 20 等）
+- [x] ロギング: zap ロガー初期化（設定の logging.level, logging.format に基づく）
+- [x] Docker クライアントラッパー (`internal/backend/docker/client.go`): NewClient(), Close(), Ping()
+- [x] Docker コンテナ操作 (`internal/backend/docker/container.go`): RunContainer(), StopContainer(), ListManagedContainers()
+- [x] Docker ネットワーク・ボリューム・イメージ管理 (`network.go`, `volume.go`, `image.go`)
+- [x] Docker ラベル管理 (`labels.go`): `cloudia.managed=true` ラベル付与
+- [x] Docker イベント監視 (`events.go`): WatchEvents() でコンテナ状態変更をコールバック通知
+- [x] Docker 孤立リソース削除 (`CleanupOrphans()`)
+- [x] CLI `start` コマンド (`internal/cli/start.go`): 設定読み込み → ロガー初期化 → Docker 接続確認（未起動時は明確なエラーメッセージ） → HTTP サーバー起動 → SIGINT/SIGTERM で graceful shutdown
+- [x] CLI `stop` コマンド (`internal/cli/stop.go`): PID ファイル経由で停止シグナル送信
+- [x] CLI `status` コマンド (`internal/cli/status.go`): ヘルスチェック API への問い合わせ
+- [x] CLI `cleanup` コマンド (`internal/cli/cleanup.go`): 管理下 Docker リソースの全削除
+- [x] Gateway 基本構造 (`internal/gateway/server.go`): net/http サーバー起動・停止、localhost のみバインド（127.0.0.1）
+- [x] Gateway ルーター (`internal/gateway/router.go`): detectProvider() のスタブ、未対応リクエストへのエラーレスポンス
+- [x] ミドルウェア (`internal/gateway/middleware/`): logging.go（アクセスログ）, recovery.go（パニックリカバリ）, timeout.go（リクエストタイムアウト）
+- [x] 管理 API (`internal/admin/health.go`): GET /health → `{"status": "ok"}`
+- [x] 管理 API (`internal/admin/admin.go`): GET /admin/services → 登録済みサービス一覧（空配列）
+- [x] 共通モデル (`pkg/models/resource.go`): Resource 基底型（Kind, ID, Provider, Service, Region, Tags, Spec, Status, CreatedAt, UpdatedAt, ContainerID, TTL）
+- [x] 共通エラー (`pkg/models/errors.go`): ErrNotFound, ErrAlreadyExists, ErrLimitExceeded, ErrServiceUnavailable, ErrUnsupportedOperation
+- [x] テスト: `cloudia start` → `/health` に 200 が返る → `cloudia stop` で正常終了する統合テスト
 
 ---
 
@@ -87,7 +87,7 @@ CLI → Gateway → Auth (SigV4/OAuth) → Protocol (XML/JSON変換) → Service
 - [ ] GCP エラーレスポンス (`internal/protocol/gcp/error.go`): `{"error": {"code": N, "message": "...", "status": "..."}}` 形式
 - [ ] Gateway ルーティング完成 (`internal/gateway/router.go`): Authorization ヘッダー（AWS4-HMAC-SHA256 vs Bearer）・Host ヘッダー・URL パスに基づくプロバイダ検出
 - [ ] AWS ルーター: Host ヘッダー（S3 バーチャルホスト）、Query パラメータ（Action）、X-Amz-Target ヘッダー、パスベースでサービス・アクション解決。VPC は EC2 と同じ Action パラメータ空間から振り分け
-- [ ] GCP ルーター: URL パスプレフィックスでサービス・アクション解決（/storage/v1/→Storage, /compute/v1/→Compute, /v1/projects/*/locations/*/clusters→GKE 等）
+- [ ] GCP ルーター: URL パスプレフィックスでサービス・アクション解決（/storage/v1/→Storage, /compute/v1/→Compute, /v1/projects/_/locations/_/clusters→GKE 等）
 - [ ] 認証ミドルウェア組み込み（プロバイダに応じて SigV4 or OAuth を適用）
 - [ ] 未サポート API への AWS 互換エラー（UnsupportedOperation XML）と GCP 互換エラー（501 UNIMPLEMENTED JSON）
 - [ ] サービスごとの個別エンドポイントのサポート（設定でサービス別ポートを指定可能にする）
@@ -193,7 +193,7 @@ CLI → Gateway → Auth (SigV4/OAuth) → Protocol (XML/JSON変換) → Service
 **完動品としての価値**: Terraform で DynamoDB テーブルを作成してアイテム操作が可能。Terraform state ロック（DynamoDB ベース）もローカルで動作
 
 - [ ] DynamoDB バックエンド (`internal/backend/dynamodb/backend.go`): DynamoDB Local コンテナの起動・停止・再利用、ヘルスチェック
-- [ ] AWS DynamoDB サービス (`internal/service/aws/dynamodb/`): service.go, handlers.go, models.go — CreateTable, DeleteTable, DescribeTable, ListTables, PutItem, GetItem, UpdateItem, DeleteItem, Query, Scan, BatchWriteItem, BatchGetItem の各ハンドラ実装。GSI/LSI 対応。プロトコルは JSON（X-Amz-Target: DynamoDB_20120810.*）
+- [ ] AWS DynamoDB サービス (`internal/service/aws/dynamodb/`): service.go, handlers.go, models.go — CreateTable, DeleteTable, DescribeTable, ListTables, PutItem, GetItem, UpdateItem, DeleteItem, Query, Scan, BatchWriteItem, BatchGetItem の各ハンドラ実装。GSI/LSI 対応。プロトコルは JSON（X-Amz-Target: DynamoDB_20120810.\*）
 - [ ] テスト: Terraform `aws_dynamodb_table` の apply/destroy テスト。DynamoDB アイテム操作テスト。Terraform state ロック（S3 backend + DynamoDB lock table）のローカル動作テスト
 
 ---
@@ -274,12 +274,14 @@ CLI → Gateway → Auth (SigV4/OAuth) → Protocol (XML/JSON変換) → Service
 ## 注記
 
 ### Critic レビューからの留保事項
+
 - パフォーマンス目標の計測は各サービスマイルストーンのテストタスクに含めた
 - セキュリティ（localhost バインド）は v0.1 の Gateway 実装に明示的に含めた
 - macOS/Linux 互換性の検証は v0.13 の E2E テストで実施する
 - SQS/Pub/Sub の Redis バックエンド切替は Phase 1 ではインメモリのみ実装し、永続性が必要になった時点で追加する
 
 ### Open Questions
+
 - IMDS の実装方式: Gateway 内に専用 HTTP サーバーを立て Docker ネットワーク経由でルーティングする方式を採用（macOS 互換性のため iptables は不採用）
 - k3s vs kind: k3s をデフォルトとする（シングルバイナリで軽量）。設定で kind に切替可能
 - Lambda レイヤー: ボリュームマウントによる簡易実装とする

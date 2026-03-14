@@ -33,6 +33,12 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("state.backend", "memory")
 	v.SetDefault("state.file_path", "~/.cloudia/state.json")
 	v.SetDefault("state.reconciliation_interval", 30*time.Second)
+	v.SetDefault("state.lock_timeout", 30*time.Second)
+
+	// Ports
+	v.SetDefault("ports.range_start", 10000)
+	v.SetDefault("ports.range_end", 20000)
+	v.SetDefault("ports.max_per_resource", 10)
 
 	// Cleanup
 	v.SetDefault("cleanup.ttl_enabled", false)

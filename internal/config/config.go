@@ -19,6 +19,7 @@ type Config struct {
 	State   StateConfig   `mapstructure:"state"   yaml:"state"`
 	Cleanup CleanupConfig `mapstructure:"cleanup" yaml:"cleanup"`
 	Metrics MetricsConfig `mapstructure:"metrics" yaml:"metrics"`
+	Ports   PortConfig    `mapstructure:"ports"   yaml:"ports"`
 }
 
 // ServerConfig はHTTPサーバーの設定です。
@@ -55,6 +56,14 @@ type StateConfig struct {
 	Backend                string        `mapstructure:"backend"                  yaml:"backend"`
 	FilePath               string        `mapstructure:"file_path"                yaml:"file_path"`
 	ReconciliationInterval time.Duration `mapstructure:"reconciliation_interval"  yaml:"reconciliation_interval"`
+	LockTimeout            time.Duration `mapstructure:"lock_timeout"             yaml:"lock_timeout"`
+}
+
+// PortConfig はポート管理の設定です。
+type PortConfig struct {
+	RangeStart     int `mapstructure:"range_start"      yaml:"range_start"`
+	RangeEnd       int `mapstructure:"range_end"        yaml:"range_end"`
+	MaxPerResource int `mapstructure:"max_per_resource" yaml:"max_per_resource"`
 }
 
 // CleanupConfig はリソースのクリーンアップ設定です。

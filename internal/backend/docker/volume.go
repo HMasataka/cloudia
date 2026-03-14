@@ -11,7 +11,7 @@ import (
 func (c *Client) CreateVolume(ctx context.Context, name string) error {
 	_, err := c.cli.VolumeCreate(ctx, volume.CreateOptions{
 		Name:   name,
-		Labels: ManagedLabels(name, "docker"),
+		Labels: ManagedLabels(name, "docker", "", ""),
 	})
 	return err
 }

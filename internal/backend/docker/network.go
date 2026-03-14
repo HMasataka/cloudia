@@ -11,7 +11,7 @@ import (
 func (c *Client) CreateNetwork(ctx context.Context, name string) (string, error) {
 	resp, err := c.cli.NetworkCreate(ctx, name, network.CreateOptions{
 		Driver: "bridge",
-		Labels: ManagedLabels(name, "docker"),
+		Labels: ManagedLabels(name, "docker", "", ""),
 	})
 	if err != nil {
 		return "", err
