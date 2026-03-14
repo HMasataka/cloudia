@@ -35,6 +35,8 @@ type AWSAuthConfig struct {
 // GCPAuthConfig は GCP 認証の設定です。
 type GCPAuthConfig struct {
 	CredentialsFile string `mapstructure:"credentials_file" yaml:"credentials_file"`
+	Project         string `mapstructure:"project"          yaml:"project"`
+	Zone            string `mapstructure:"zone"             yaml:"zone"`
 }
 
 // AuthConfig は認証の設定です。

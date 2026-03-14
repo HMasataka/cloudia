@@ -33,6 +33,7 @@ import (
 	gcssvc "github.com/HMasataka/cloudia/internal/service/gcs"
 	gkesvc "github.com/HMasataka/cloudia/internal/service/gke"
 	iamsvc "github.com/HMasataka/cloudia/internal/service/iam"
+	pubsubsvc "github.com/HMasataka/cloudia/internal/service/pubsub"
 	memorystoresvc "github.com/HMasataka/cloudia/internal/service/memorystore"
 	rdssvc "github.com/HMasataka/cloudia/internal/service/rds"
 	s3svc "github.com/HMasataka/cloudia/internal/service/s3"
@@ -169,8 +170,12 @@ func runStart(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to register sg service: %w", err)
 	}
 
-	if err := registry.Register(gcesvc.NewGCEService(logger)); err != nil {
+	if err := registry.Register(gcesvc.NewGCEService(cfg.Auth.GCP, logger)); err != nil {
 		return fmt.Errorf("failed to register gce service: %w", err)
+	}
+
+	if err := registry.Register(pubsubsvc.NewPubSubService(logger)); err != nil {
+		return fmt.Errorf("failed to register pubsub service: %w", err)
 	}
 
 	if err := registry.Register(elasticachesvc.NewElastiCacheService(cfg.Auth.AWS, logger)); err != nil {
@@ -212,7 +217,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 	serviceHandler := gateway.NewServiceHandler(verifiers, codecs, registry, logger)
 	adminHandler := admin.NewHandler(dockerClient, logger)
 	router := gateway.NewRouter(adminHandler, serviceHandler, logger, cfg.Server.Timeout)
-	server := gateway.NewServerWithStore(cfg.Server, cfg.Endpoints, router, memStore, logger)
+	server := gateway.NewServerWithStore(cfg.Server, cfg.Endpoints, cfg.Metrics, router, memStore, logger)
 
 	if err := server.Start(); err != nil {
 		return fmt.Errorf("failed to start server: %w", err)

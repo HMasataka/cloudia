@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/HMasataka/cloudia/internal/backend/docker"
+	"github.com/HMasataka/cloudia/internal/config"
 	"github.com/HMasataka/cloudia/internal/service"
 	"github.com/HMasataka/cloudia/internal/service/gce"
 	"github.com/HMasataka/cloudia/internal/state"
@@ -51,7 +52,7 @@ func newTestGCEService(t *testing.T) (*gce.GCEService, *state.MemoryStore) {
 	t.Helper()
 	store := state.NewMemoryStore()
 	runner := &stubContainerRunner{}
-	svc := gce.NewGCEService(zap.NewNop())
+	svc := gce.NewGCEService(config.GCPAuthConfig{Project: "test-project", Zone: "us-central1-a"}, zap.NewNop())
 	if err := svc.Init(context.Background(), service.ServiceDeps{
 		Store:        store,
 		DockerClient: runner,
@@ -78,7 +79,7 @@ func handleGCERequest(t *testing.T, svc *gce.GCEService, method, action string, 
 
 // TestGCEService_Name は Name() が "compute" を返すことを検証します。
 func TestGCEService_Name(t *testing.T) {
-	svc := gce.NewGCEService(zap.NewNop())
+	svc := gce.NewGCEService(config.GCPAuthConfig{}, zap.NewNop())
 	if got := svc.Name(); got != "compute" {
 		t.Errorf("Name() = %q, want %q", got, "compute")
 	}
@@ -86,7 +87,7 @@ func TestGCEService_Name(t *testing.T) {
 
 // TestGCEService_Provider は Provider() が "gcp" を返すことを検証します。
 func TestGCEService_Provider(t *testing.T) {
-	svc := gce.NewGCEService(zap.NewNop())
+	svc := gce.NewGCEService(config.GCPAuthConfig{}, zap.NewNop())
 	if got := svc.Provider(); got != "gcp" {
 		t.Errorf("Provider() = %q, want %q", got, "gcp")
 	}

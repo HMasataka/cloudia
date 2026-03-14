@@ -9,6 +9,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/HMasataka/cloudia/internal/config"
 	"github.com/HMasataka/cloudia/internal/service"
 	"github.com/HMasataka/cloudia/internal/state"
 )
@@ -16,6 +17,7 @@ import (
 // GCEService は GCP Compute Engine サービスのエミュレーションを行います。
 // Docker コンテナを GCE インスタンスのバックエンドとして使用します。
 type GCEService struct {
+	cfg         config.GCPAuthConfig
 	store       service.Store
 	docker      service.ContainerRunner
 	lockManager service.LockManager
@@ -24,8 +26,9 @@ type GCEService struct {
 }
 
 // NewGCEService は新しい GCEService を返します。
-func NewGCEService(logger *zap.Logger) *GCEService {
+func NewGCEService(cfg config.GCPAuthConfig, logger *zap.Logger) *GCEService {
 	return &GCEService{
+		cfg:    cfg,
 		logger: logger,
 	}
 }

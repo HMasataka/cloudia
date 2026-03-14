@@ -152,6 +152,7 @@ func (s *SGService) createSecurityGroup(ctx context.Context, req service.Request
 		ID:        sgID,
 		Provider:  "aws",
 		Service:   "sg",
+		Region:    s.cfg.Region,
 		Status:    "available",
 		CreatedAt: now,
 		UpdatedAt: now,

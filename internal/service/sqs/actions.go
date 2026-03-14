@@ -50,6 +50,7 @@ func (s *SQSService) createQueue(ctx context.Context, req service.Request) (serv
 		ID:        r.QueueName,
 		Provider:  "aws",
 		Service:   "sqs",
+		Region:    s.cfg.Region,
 		Status:    "active",
 		CreatedAt: now,
 		UpdatedAt: now,

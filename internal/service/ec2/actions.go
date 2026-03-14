@@ -211,6 +211,11 @@ func instanceItemFromResource(r *models.Resource) InstanceItem {
 		}
 	}
 
+	az := r.Region
+	if az == "" {
+		az = "us-east-1a"
+	}
+
 	item := InstanceItem{
 		InstanceId:     r.ID,
 		ImageId:        imageID,
@@ -218,6 +223,7 @@ func instanceItemFromResource(r *models.Resource) InstanceItem {
 		State:          InstanceStateItem{Code: stateCode, Name: stateName},
 		PrivateIp:      privateIP,
 		PrivateDNSName: privateDNSName(privateIP),
+		Placement:      PlacementItem{AvailabilityZone: az},
 		TagSet:         TagSet{Items: tagItems},
 		GroupSet:       GroupSet{Items: groupItems},
 	}

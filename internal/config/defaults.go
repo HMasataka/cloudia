@@ -57,4 +57,6 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("auth.aws.secret_key", "test")
 	v.SetDefault("auth.aws.account_id", "000000000000")
 	v.SetDefault("auth.aws.region", "us-east-1")
+	v.SetDefault("auth.gcp.project", "cloudia-local")
+	v.SetDefault("auth.gcp.zone", "us-central1-a")
 }

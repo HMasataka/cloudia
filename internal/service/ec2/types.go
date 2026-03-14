@@ -56,6 +56,11 @@ type GroupSet struct {
 	Items []GroupItem `xml:"item"`
 }
 
+// PlacementItem は EC2 インスタンスの配置情報を表します。
+type PlacementItem struct {
+	AvailabilityZone string `xml:"availabilityZone,omitempty"`
+}
+
 // InstanceItem はレスポンス内の Instance 要素です。
 type InstanceItem struct {
 	InstanceId     string            `xml:"instanceId"`
@@ -65,6 +70,7 @@ type InstanceItem struct {
 	PrivateIp      string            `xml:"privateIpAddress,omitempty"`
 	PrivateDNSName string            `xml:"privateDnsName,omitempty"`
 	LaunchTime     string            `xml:"launchTime,omitempty"`
+	Placement      PlacementItem     `xml:"placement"`
 	TagSet         TagSet            `xml:"tagSet"`
 	GroupSet       GroupSet          `xml:"groupSet"`
 }
