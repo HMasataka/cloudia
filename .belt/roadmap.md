@@ -77,21 +77,21 @@ CLI → Gateway → Auth (SigV4/OAuth) → Protocol (XML/JSON変換) → Service
 **ゴール**: SigV4 署名検証、GCP OAuth トークン検証、AWS/GCP プロトコル変換が動作する。Gateway がプロバイダを正しく検出し認証を通過させる
 **完動品としての価値**: AWS CLI (`--endpoint-url`) や gcloud CLI から認証付きリクエストを送信でき、適切な UnsupportedOperation エラーが返る
 
-- [ ] AWS SigV4 署名検証 (`internal/auth/sigv4/verifier.go`): AWS SigV4 仕様に完全準拠した署名検証（Canonical Request 生成、StringToSign 計算、署名照合）。ローカルモードでは固定 AccessKey/SecretKey（`test`/`test`）を受け入れる。リージョン・サービス名の抽出
-- [ ] GCP OAuth トークン検証 (`internal/auth/gcp/verifier.go`): Bearer トークン検証。ローカルモードでは任意のトークンを受け入れ。project_id 抽出
-- [ ] AWS XML エンコーダ (`internal/protocol/aws/xml.go`): 構造体→XML マーシャリング、AWS namespace 付与
-- [ ] AWS Query パーサー (`internal/protocol/aws/query.go`): Action, Version 等の抽出、フラットパラメータの構造体変換
-- [ ] AWS JSON プロトコル (`internal/protocol/aws/json.go`): X-Amz-Target / application/x-amz-json-1.0 対応（DynamoDB, SQS 等用）
-- [ ] AWS エラーレスポンス (`internal/protocol/aws/error.go`): XML/JSON 両対応のエラー生成
-- [ ] GCP JSON エンコーダ (`internal/protocol/gcp/json.go`): GCP REST JSON レスポンス
-- [ ] GCP エラーレスポンス (`internal/protocol/gcp/error.go`): `{"error": {"code": N, "message": "...", "status": "..."}}` 形式
-- [ ] Gateway ルーティング完成 (`internal/gateway/router.go`): Authorization ヘッダー（AWS4-HMAC-SHA256 vs Bearer）・Host ヘッダー・URL パスに基づくプロバイダ検出
-- [ ] AWS ルーター: Host ヘッダー（S3 バーチャルホスト）、Query パラメータ（Action）、X-Amz-Target ヘッダー、パスベースでサービス・アクション解決。VPC は EC2 と同じ Action パラメータ空間から振り分け
-- [ ] GCP ルーター: URL パスプレフィックスでサービス・アクション解決（/storage/v1/→Storage, /compute/v1/→Compute, /v1/projects/_/locations/_/clusters→GKE 等）
-- [ ] 認証ミドルウェア組み込み（プロバイダに応じて SigV4 or OAuth を適用）
-- [ ] 未サポート API への AWS 互換エラー（UnsupportedOperation XML）と GCP 互換エラー（501 UNIMPLEMENTED JSON）
-- [ ] サービスごとの個別エンドポイントのサポート（設定でサービス別ポートを指定可能にする）
-- [ ] テスト: AWS CLI で `--endpoint-url` 指定して認証通過→UnsupportedOperation が返るテスト、gcloud CLI 互換テスト
+- [x] AWS SigV4 署名検証 (`internal/auth/sigv4/verifier.go`): AWS SigV4 仕様に完全準拠した署名検証（Canonical Request 生成、StringToSign 計算、署名照合）。ローカルモードでは固定 AccessKey/SecretKey（`test`/`test`）を受け入れる。リージョン・サービス名の抽出
+- [x] GCP OAuth トークン検証 (`internal/auth/gcp/verifier.go`): Bearer トークン検証。ローカルモードでは任意のトークンを受け入れ。project_id 抽出
+- [x] AWS XML エンコーダ (`internal/protocol/aws/xml.go`): 構造体→XML マーシャリング、AWS namespace 付与
+- [x] AWS Query パーサー (`internal/protocol/aws/query.go`): Action, Version 等の抽出、フラットパラメータの構造体変換
+- [x] AWS JSON プロトコル (`internal/protocol/aws/json.go`): X-Amz-Target / application/x-amz-json-1.0 対応（DynamoDB, SQS 等用）
+- [x] AWS エラーレスポンス (`internal/protocol/aws/error.go`): XML/JSON 両対応のエラー生成
+- [x] GCP JSON エンコーダ (`internal/protocol/gcp/json.go`): GCP REST JSON レスポンス
+- [x] GCP エラーレスポンス (`internal/protocol/gcp/error.go`): `{"error": {"code": N, "message": "...", "status": "..."}}` 形式
+- [x] Gateway ルーティング完成 (`internal/gateway/router.go`): Authorization ヘッダー（AWS4-HMAC-SHA256 vs Bearer）・Host ヘッダー・URL パスに基づくプロバイダ検出
+- [x] AWS ルーター: Host ヘッダー（S3 バーチャルホスト）、Query パラメータ（Action）、X-Amz-Target ヘッダー、パスベースでサービス・アクション解決。VPC は EC2 と同じ Action パラメータ空間から振り分け
+- [x] GCP ルーター: URL パスプレフィックスでサービス・アクション解決（/storage/v1/→Storage, /compute/v1/→Compute, /v1/projects/_/locations/_/clusters→GKE 等）
+- [x] 認証ミドルウェア組み込み（プロバイダに応じて SigV4 or OAuth を適用）
+- [x] 未サポート API への AWS 互換エラー（UnsupportedOperation XML）と GCP 互換エラー（501 UNIMPLEMENTED JSON）
+- [x] サービスごとの個別エンドポイントのサポート（設定でサービス別ポートを指定可能にする）
+- [x] テスト: AWS CLI で `--endpoint-url` 指定して認証通過→UnsupportedOperation が返るテスト、gcloud CLI 互換テスト
 
 ---
 
