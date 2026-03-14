@@ -29,6 +29,7 @@ type ContainerConfig struct {
 	MemoryLimit int64
 	Cmd         []string
 	Binds       []string
+	Privileged  bool
 }
 
 // RunContainer pulls an image, creates a container, and starts it.
@@ -72,6 +73,7 @@ func (c *Client) RunContainer(ctx context.Context, cfg ContainerConfig) (string,
 	hostCfg := &container.HostConfig{
 		Binds:        cfg.Binds,
 		PortBindings: portBindings,
+		Privileged:   cfg.Privileged,
 		Resources: container.Resources{
 			NanoCPUs: cfg.CPULimit,
 			Memory:   cfg.MemoryLimit,
