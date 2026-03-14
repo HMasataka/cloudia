@@ -20,14 +20,23 @@ var pathPrefixes = []servicePrefix{
 	// /v1/projects/ 配下はパス詳細でサービスを判別する
 }
 
-// v1ProjectsServices は /v1/projects/ 配下のパスで使うキーワードとサービスのマッピングです。
-var v1ProjectsServices = []struct {
-	keyword string
-	service string
-}{
-	{keyword: "/instances/", service: "cloudsql"},
-	{keyword: "/clusters/", service: "gke"},
-	{keyword: "/instances", service: "memorystore"},
+// resolveV1ProjectsService は /v1/projects/ 配下の rest パスからサービス名を返します。
+//
+// 判別ロジック:
+//   - "/locations/" と "/instances" を両方含む → "memorystore"
+//   - "/clusters/" を含む                     → "gke"
+//   - それ以外で "/instances" を含む           → "cloudsql"
+func resolveV1ProjectsService(rest string) (string, bool) {
+	switch {
+	case strings.Contains(rest, "/locations/") && strings.Contains(rest, "/instances"):
+		return "memorystore", true
+	case strings.Contains(rest, "/clusters/") || strings.HasSuffix(rest, "/clusters"):
+		return "gke", true
+	case strings.Contains(rest, "/instances"):
+		return "cloudsql", true
+	default:
+		return "", false
+	}
 }
 
 // ResolveGCPService は URL パスから GCP サービス名とリソースパスを解決します。
@@ -58,10 +67,8 @@ func ResolveGCPService(path string) (service string, resourcePath string, err er
 	const v1ProjectsPrefix = "/v1/projects/"
 	if strings.HasPrefix(path, v1ProjectsPrefix) {
 		rest := strings.TrimPrefix(path, v1ProjectsPrefix)
-		for _, kv := range v1ProjectsServices {
-			if idx := strings.Index(rest, kv.keyword); idx >= 0 {
-				return kv.service, rest, nil
-			}
+		if svc, ok := resolveV1ProjectsService(rest); ok {
+			return svc, rest, nil
 		}
 		return "", "", fmt.Errorf("gcp router: unknown service under /v1/projects/ path %q", path)
 	}

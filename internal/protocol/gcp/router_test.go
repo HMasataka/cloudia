@@ -27,22 +27,34 @@ func TestResolveGCPService(t *testing.T) {
 			wantResourcePath: "projects/my-proj/zones/us-central1-a/instances",
 		},
 		{
-			name:             "cloudsql path via instances keyword",
-			path:             "/v1/projects/my-proj/instances/my-instance",
-			wantService:      "cloudsql",
-			wantResourcePath: "my-proj/instances/my-instance",
-		},
-		{
 			name:             "gke path via clusters keyword",
 			path:             "/v1/projects/my-proj/locations/us-central1/clusters/my-cluster",
 			wantService:      "gke",
 			wantResourcePath: "my-proj/locations/us-central1/clusters/my-cluster",
 		},
 		{
-			name:             "memorystore path via instances keyword with memorystore context",
+			name:             "memorystore path via locations + instances",
 			path:             "/v1/projects/my-proj/locations/us-central1/instances/my-cache",
-			wantService:      "cloudsql",
+			wantService:      "memorystore",
 			wantResourcePath: "my-proj/locations/us-central1/instances/my-cache",
+		},
+		{
+			name:             "memorystore list path (no trailing slash)",
+			path:             "/v1/projects/my-proj/locations/us-central1/instances",
+			wantService:      "memorystore",
+			wantResourcePath: "my-proj/locations/us-central1/instances",
+		},
+		{
+			name:             "gke list path (no trailing slash)",
+			path:             "/v1/projects/my-proj/locations/us-central1/clusters",
+			wantService:      "gke",
+			wantResourcePath: "my-proj/locations/us-central1/clusters",
+		},
+		{
+			name:             "cloudsql path without locations prefix",
+			path:             "/v1/projects/my-proj/instances/my-instance",
+			wantService:      "cloudsql",
+			wantResourcePath: "my-proj/instances/my-instance",
 		},
 		{
 			name:    "v1/projects unknown service",
