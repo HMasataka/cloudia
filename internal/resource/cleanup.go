@@ -12,7 +12,7 @@ import (
 // DockerRemover は Docker コンテナの停止・削除を行うインターフェースです。
 // docker.Client はこのインターフェースを満たすアダプタ経由で使用します。
 type DockerRemover interface {
-	StopContainer(ctx context.Context, id string) error
+	StopContainer(ctx context.Context, id string, timeout *int) error
 	RemoveContainer(ctx context.Context, id string) error
 }
 
@@ -49,7 +49,7 @@ func (c *Cleaner) CleanupOrphans(ctx context.Context) (int, error) {
 		}
 
 		if r.ContainerID != "" {
-			if err := c.docker.StopContainer(ctx, r.ContainerID); err != nil {
+			if err := c.docker.StopContainer(ctx, r.ContainerID, nil); err != nil {
 				c.logger.Warn("cleanup: failed to stop container, skipping",
 					zap.String("resource_id", r.ID),
 					zap.String("container_id", r.ContainerID),

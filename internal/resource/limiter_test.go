@@ -3,6 +3,7 @@ package resource
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -97,10 +98,10 @@ func TestLimiter_ErrorMessageContainsCurrentAndMax(t *testing.T) {
 	}
 	msg := err.Error()
 	// エラーメッセージに "current 2" と "max 2" が含まれること
-	if !containsStr(msg, "current 2") {
+	if !strings.Contains(msg, "current 2") {
 		t.Errorf("error message should contain 'current 2', got: %q", msg)
 	}
-	if !containsStr(msg, "max 2") {
+	if !strings.Contains(msg, "max 2") {
 		t.Errorf("error message should contain 'max 2', got: %q", msg)
 	}
 }
@@ -165,15 +166,3 @@ func TestLimiter_InvalidMemory_ReturnsError(t *testing.T) {
 	}
 }
 
-func containsStr(s, sub string) bool {
-	return len(s) >= len(sub) && (s == sub || len(s) > 0 && containsSubstr(s, sub))
-}
-
-func containsSubstr(s, sub string) bool {
-	for i := 0; i <= len(s)-len(sub); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
-	}
-	return false
-}

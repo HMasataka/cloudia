@@ -20,7 +20,7 @@ type mockDockerRemover struct {
 	removed   []string
 }
 
-func (m *mockDockerRemover) StopContainer(_ context.Context, id string) error {
+func (m *mockDockerRemover) StopContainer(_ context.Context, id string, _ *int) error {
 	if m.stopErr != nil {
 		return m.stopErr
 	}

@@ -20,6 +20,7 @@ type mockService struct {
 	initErr        error
 	shutdownErr    error
 	healthy        bool
+	onShutdown     func()
 
 	mu    sync.Mutex
 	calls []string
@@ -53,6 +54,9 @@ func (m *mockService) Shutdown(_ context.Context) error {
 	defer m.mu.Unlock()
 	m.shutdownCalled = true
 	m.calls = append(m.calls, "shutdown:"+m.provider+":"+m.name)
+	if m.onShutdown != nil {
+		m.onShutdown()
+	}
 	return m.shutdownErr
 }
 
@@ -141,9 +145,25 @@ func TestRegistry_InitAll_StopsOnFirstError(t *testing.T) {
 
 func TestRegistry_ShutdownAll_ReverseOrder(t *testing.T) {
 	reg := service.NewRegistry()
+
+	// 共有の呼び出し順記録スライス
+	var (
+		orderMu sync.Mutex
+		callOrder []string
+	)
+	recordCall := func(label string) {
+		orderMu.Lock()
+		defer orderMu.Unlock()
+		callOrder = append(callOrder, label)
+	}
+
 	svc1 := newMockService("aws", "s3")
 	svc2 := newMockService("aws", "ec2")
 	svc3 := newMockService("gcp", "compute")
+
+	svc1.onShutdown = func() { recordCall("shutdown:aws:s3") }
+	svc2.onShutdown = func() { recordCall("shutdown:aws:ec2") }
+	svc3.onShutdown = func() { recordCall("shutdown:gcp:compute") }
 
 	// 登録順: svc1, svc2, svc3
 	reg.Register(svc1) //nolint
@@ -159,30 +179,19 @@ func TestRegistry_ShutdownAll_ReverseOrder(t *testing.T) {
 	}
 
 	// シャットダウン順序は逆順: svc3, svc2, svc1
-	// svc3 の shutdown が svc1 より先に呼ばれているはず
-	// calls スライスの順番で確認
 	expectedOrder := []string{
 		"shutdown:gcp:compute",
 		"shutdown:aws:ec2",
 		"shutdown:aws:s3",
 	}
-	allCalls := []string{}
-	for _, call := range svc1.calls {
-		allCalls = append(allCalls, call)
+	if len(callOrder) != len(expectedOrder) {
+		t.Fatalf("expected %d shutdown calls, got %d: %v", len(expectedOrder), len(callOrder), callOrder)
 	}
-	for _, call := range svc2.calls {
-		allCalls = append(allCalls, call)
+	for i, want := range expectedOrder {
+		if callOrder[i] != want {
+			t.Errorf("shutdown call[%d]: expected %q, got %q (full order: %v)", i, want, callOrder[i], callOrder)
+		}
 	}
-	for _, call := range svc3.calls {
-		allCalls = append(allCalls, call)
-	}
-
-	// calls は各サービスのスライスに記録されているので、
-	// ShutdownAll の呼び出し順を確認するため別の方法を使う
-	if !svc3.shutdownCalled {
-		t.Error("svc3 should be shut down")
-	}
-	_ = expectedOrder
 }
 
 func TestRegistry_ShutdownAll_ContinuesOnError(t *testing.T) {

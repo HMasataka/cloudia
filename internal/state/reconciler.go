@@ -84,23 +84,25 @@ func (r *Reconciler) Reconcile(ctx context.Context) error {
 		if _, exists := dockerByID[res.ContainerID]; exists {
 			continue
 		}
-		if !r.locker.TryLock(res.Kind, res.ID) {
-			r.logger.Warn("reconcile: skip terminated update, resource locked",
-				zap.String("kind", res.Kind),
-				zap.String("id", res.ID),
-			)
-			continue
-		}
-		res.Status = "terminated"
-		res.UpdatedAt = time.Now()
-		if putErr := r.store.Put(ctx, res); putErr != nil {
-			r.logger.Warn("reconcile: failed to update terminated resource",
-				zap.String("kind", res.Kind),
-				zap.String("id", res.ID),
-				zap.Error(putErr),
-			)
-		}
-		r.locker.Unlock(res.Kind, res.ID)
+		func() {
+			if !r.locker.TryLock(res.Kind, res.ID) {
+				r.logger.Warn("reconcile: skip terminated update, resource locked",
+					zap.String("kind", res.Kind),
+					zap.String("id", res.ID),
+				)
+				return
+			}
+			defer r.locker.Unlock(res.Kind, res.ID)
+			res.Status = "terminated"
+			res.UpdatedAt = time.Now()
+			if putErr := r.store.Put(ctx, res); putErr != nil {
+				r.logger.Warn("reconcile: failed to update terminated resource",
+					zap.String("kind", res.Kind),
+					zap.String("id", res.ID),
+					zap.Error(putErr),
+				)
+			}
+		}()
 	}
 
 	// State に登録済みの ContainerID セットを構築
@@ -128,33 +130,35 @@ func (r *Reconciler) Reconcile(ctx context.Context) error {
 			id = id[:12]
 		}
 
-		if !r.locker.TryLock(kind, id) {
-			r.logger.Warn("reconcile: skip orphan insert, resource locked",
-				zap.String("kind", kind),
-				zap.String("id", id),
-			)
-			continue
-		}
+		func() {
+			if !r.locker.TryLock(kind, id) {
+				r.logger.Warn("reconcile: skip orphan insert, resource locked",
+					zap.String("kind", kind),
+					zap.String("id", id),
+				)
+				return
+			}
+			defer r.locker.Unlock(kind, id)
 
-		now := time.Now()
-		orphan := &models.Resource{
-			Kind:        kind,
-			ID:          id,
-			Provider:    provider,
-			Service:     service,
-			Region:      region,
-			Status:      "orphan",
-			ContainerID: c.ID,
-			CreatedAt:   now,
-			UpdatedAt:   now,
-		}
-		if putErr := r.store.Put(ctx, orphan); putErr != nil {
-			r.logger.Warn("reconcile: failed to insert orphan resource",
-				zap.String("container_id", c.ID),
-				zap.Error(putErr),
-			)
-		}
-		r.locker.Unlock(kind, id)
+			now := time.Now()
+			orphan := &models.Resource{
+				Kind:        kind,
+				ID:          id,
+				Provider:    provider,
+				Service:     service,
+				Region:      region,
+				Status:      "orphan",
+				ContainerID: c.ID,
+				CreatedAt:   now,
+				UpdatedAt:   now,
+			}
+			if putErr := r.store.Put(ctx, orphan); putErr != nil {
+				r.logger.Warn("reconcile: failed to insert orphan resource",
+					zap.String("container_id", c.ID),
+					zap.Error(putErr),
+				)
+			}
+		}()
 	}
 
 	return nil

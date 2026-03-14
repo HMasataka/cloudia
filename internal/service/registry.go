@@ -80,14 +80,14 @@ func (r *Registry) InitAll(ctx context.Context, deps ServiceDeps) error {
 	r.mu.RLock()
 	keys := make([]string, len(r.order))
 	copy(keys, r.order)
+	services := make(map[string]Service, len(r.services))
+	for k, v := range r.services {
+		services[k] = v
+	}
 	r.mu.RUnlock()
 
 	for _, key := range keys {
-		r.mu.RLock()
-		svc := r.services[key]
-		r.mu.RUnlock()
-
-		if err := svc.Init(ctx, deps); err != nil {
+		if err := services[key].Init(ctx, deps); err != nil {
 			return fmt.Errorf("init service %q: %w", key, err)
 		}
 	}
@@ -101,18 +101,17 @@ func (r *Registry) ShutdownAll(ctx context.Context) error {
 	r.mu.RLock()
 	keys := make([]string, len(r.order))
 	copy(keys, r.order)
+	services := make(map[string]Service, len(r.services))
+	for k, v := range r.services {
+		services[k] = v
+	}
 	r.mu.RUnlock()
 
 	var firstErr error
 
 	for i := len(keys) - 1; i >= 0; i-- {
 		key := keys[i]
-
-		r.mu.RLock()
-		svc := r.services[key]
-		r.mu.RUnlock()
-
-		if err := svc.Shutdown(ctx); err != nil {
+		if err := services[key].Shutdown(ctx); err != nil {
 			if firstErr == nil {
 				firstErr = fmt.Errorf("shutdown service %q: %w", key, err)
 			}

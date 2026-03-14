@@ -16,6 +16,7 @@ type TTLManager struct {
 	store    state.Store
 	cleaner  *Cleaner
 	interval time.Duration
+	enabled  bool
 	logger   *zap.Logger
 }
 
@@ -25,13 +26,28 @@ func NewTTLManager(store state.Store, cleaner *Cleaner, interval time.Duration, 
 		store:    store,
 		cleaner:  cleaner,
 		interval: interval,
+		enabled:  true,
+		logger:   logger,
+	}
+}
+
+// NewTTLManagerWithEnabled は enabled フラグ付きで TTLManager を生成します。
+func NewTTLManagerWithEnabled(store state.Store, cleaner *Cleaner, interval time.Duration, enabled bool, logger *zap.Logger) *TTLManager {
+	return &TTLManager{
+		store:    store,
+		cleaner:  cleaner,
+		interval: interval,
+		enabled:  enabled,
 		logger:   logger,
 	}
 }
 
 // Start はバックグラウンド goroutine で TTL チェックを定期実行します。
-// ctx がキャンセルされると停止します。
+// ctx がキャンセルされると停止します。enabled が false の場合は goroutine を起動しません。
 func (m *TTLManager) Start(ctx context.Context) {
+	if !m.enabled {
+		return
+	}
 	go func() {
 		ticker := time.NewTicker(m.interval)
 		defer ticker.Stop()
