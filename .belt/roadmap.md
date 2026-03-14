@@ -56,19 +56,19 @@ CLI → Gateway → Auth (SigV4/OAuth) → Protocol (XML/JSON変換) → Service
 **ゴール**: インメモリ State Store、リソースロック、リソース制限、ポート管理が動作する。Service インターフェースとレジストリの基盤を確立する
 **完動品としての価値**: サービス実装の受け皿が完成し、リソースの CRUD・排他制御・上限管理がテスト可能
 
-- [ ] State Store インターフェース (`internal/state/store.go`): Get(kind, id), List(kind, filter), Put(resource), Delete(kind, id), Lock(kind, id), Snapshot(path), Restore(path)
-- [ ] インメモリ実装 (`internal/state/memory.go`): sync.RWMutex + map ベース
-- [ ] ファイル永続化実装 (`internal/state/file.go`): JSON シリアライズ、アトミック書き込み
-- [ ] リソースロック (`internal/state/lock.go`): LockManager（リソース単位の排他ロック、コンテキストキャンセルでタイムアウト）
-- [ ] Reconciler (`internal/state/reconciler.go`): State ↔ Docker 実態の定期照合（State にあるがコンテナない→terminated、コンテナあるが State にない→orphan 追加）
-- [ ] リソース制限 (`internal/resource/limiter.go`): コンテナ数上限（デフォルト 20）、CPU/メモリ制限チェック、上限到達時の明確なエラー
-- [ ] ポート管理 (`internal/resource/port.go`): エフェメラルポート範囲から動的割り当て、ポート衝突検出、衝突時の代替ポートフォールバック
-- [ ] クリーンアップ (`internal/resource/cleanup.go`): 孤立リソース検出・削除
-- [ ] TTL 管理 (`internal/resource/ttl.go`): バックグラウンドゴルーチンで TTL 期限切れリソースの自動クリーンアップ
-- [ ] Service インターフェース (`internal/service/interface.go`): Service, ServiceDeps, Request, Response, HealthStatus 型定義
-- [ ] サービスレジストリ (`internal/service/registry.go`): Register, Resolve, SharedBackend, InitAll, ShutdownAll, HealthAll
-- [ ] バックエンドマッピング (`internal/backend/mapping/`): ami.go（AMI→Docker イメージ）, machine_type.go（インスタンスタイプ→リソース制限）, runtime.go（Lambda ランタイム→イメージ）
-- [ ] テスト: State Store の CRUD ユニットテスト、ロック競合テスト、リソース上限到達テスト
+- [x] State Store インターフェース (`internal/state/store.go`): Get(kind, id), List(kind, filter), Put(resource), Delete(kind, id), Lock(kind, id), Snapshot(path), Restore(path)
+- [x] インメモリ実装 (`internal/state/memory.go`): sync.RWMutex + map ベース
+- [x] ファイル永続化実装 (`internal/state/file.go`): JSON シリアライズ、アトミック書き込み
+- [x] リソースロック (`internal/state/lock.go`): LockManager（リソース単位の排他ロック、コンテキストキャンセルでタイムアウト）
+- [x] Reconciler (`internal/state/reconciler.go`): State ↔ Docker 実態の定期照合（State にあるがコンテナない→terminated、コンテナあるが State にない→orphan 追加）
+- [x] リソース制限 (`internal/resource/limiter.go`): コンテナ数上限（デフォルト 20）、CPU/メモリ制限チェック、上限到達時の明確なエラー
+- [x] ポート管理 (`internal/resource/port.go`): エフェメラルポート範囲から動的割り当て、ポート衝突検出、衝突時の代替ポートフォールバック
+- [x] クリーンアップ (`internal/resource/cleanup.go`): 孤立リソース検出・削除
+- [x] TTL 管理 (`internal/resource/ttl.go`): バックグラウンドゴルーチンで TTL 期限切れリソースの自動クリーンアップ
+- [x] Service インターフェース (`internal/service/interface.go`): Service, ServiceDeps, Request, Response, HealthStatus 型定義
+- [x] サービスレジストリ (`internal/service/registry.go`): Register, Resolve, SharedBackend, InitAll, ShutdownAll, HealthAll
+- [x] バックエンドマッピング (`internal/backend/mapping/`): ami.go（AMI→Docker イメージ）, machine_type.go（インスタンスタイプ→リソース制限）, runtime.go（Lambda ランタイム→イメージ）
+- [x] テスト: State Store の CRUD ユニットテスト、ロック競合テスト、リソース上限到達テスト
 
 ---
 
