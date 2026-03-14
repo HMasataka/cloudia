@@ -32,6 +32,22 @@ var DefaultMachineMap = map[string]MachineSpec{
 		CPU:    1_000_000_000, // 1 vCPU
 		Memory: 3_840_000_000, // 3.75 GiB
 	},
+	"n1-standard-2": {
+		CPU:    2_000_000_000, // 2 vCPU
+		Memory: 7_680_000_000, // 7.5 GiB
+	},
+	"e2-micro": {
+		CPU:    250_000_000,   // 0.25 vCPU
+		Memory: 1_073_741_824, // 1 GiB
+	},
+	"e2-small": {
+		CPU:    500_000_000,   // 0.5 vCPU
+		Memory: 2_147_483_648, // 2 GiB
+	},
+	"e2-medium": {
+		CPU:    1_000_000_000, // 1 vCPU
+		Memory: 4_294_967_296, // 4 GiB
+	},
 }
 
 // ResolveMachineType はマシンタイプ名を MachineSpec に解決します。

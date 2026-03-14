@@ -24,10 +24,12 @@ import (
 	"github.com/HMasataka/cloudia/internal/resource"
 	"github.com/HMasataka/cloudia/internal/service"
 	gcssvc "github.com/HMasataka/cloudia/internal/service/gcs"
+	gcesvc "github.com/HMasataka/cloudia/internal/service/gce"
 	iamsvc "github.com/HMasataka/cloudia/internal/service/iam"
 	s3svc "github.com/HMasataka/cloudia/internal/service/s3"
 	sqssvc "github.com/HMasataka/cloudia/internal/service/sqs"
 	ec2svc "github.com/HMasataka/cloudia/internal/service/ec2"
+	sgsvc "github.com/HMasataka/cloudia/internal/service/sg"
 	vpcsvc "github.com/HMasataka/cloudia/internal/service/vpc"
 	"github.com/HMasataka/cloudia/internal/state"
 )
@@ -149,6 +151,14 @@ func runStart(cmd *cobra.Command, args []string) error {
 
 	if err := registry.Register(ec2svc.NewEC2Service(cfg.Auth.AWS, logger)); err != nil {
 		return fmt.Errorf("failed to register ec2 service: %w", err)
+	}
+
+	if err := registry.Register(sgsvc.NewSGService(cfg.Auth.AWS, logger)); err != nil {
+		return fmt.Errorf("failed to register sg service: %w", err)
+	}
+
+	if err := registry.Register(gcesvc.NewGCEService(logger)); err != nil {
+		return fmt.Errorf("failed to register gce service: %w", err)
 	}
 
 	if err := registry.InitAll(ctx, deps); err != nil {

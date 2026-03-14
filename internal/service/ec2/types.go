@@ -7,6 +7,8 @@ const xmlNamespace = "http://ec2.amazonaws.com/doc/2016-11-15/"
 
 // Store kinds for EC2 resources.
 const kindInstance = "aws:ec2:instance"
+const kindKeyPair = "aws:ec2:key-pair"
+const kindSecurityGroup = "aws:ec2:security-group"
 
 // Instance state codes.
 const (
@@ -45,6 +47,16 @@ type InstanceStateItem struct {
 	Name string `xml:"name"`
 }
 
+// GroupItem はレスポンス内のセキュリティグループ参照要素です。
+type GroupItem struct {
+	GroupId string `xml:"groupId"`
+}
+
+// GroupSet はセキュリティグループ参照のセットです。
+type GroupSet struct {
+	Items []GroupItem `xml:"item"`
+}
+
 // InstanceItem はレスポンス内の Instance 要素です。
 type InstanceItem struct {
 	InstanceId     string            `xml:"instanceId"`
@@ -55,6 +67,7 @@ type InstanceItem struct {
 	PrivateDNSName string            `xml:"privateDnsName,omitempty"`
 	LaunchTime     string            `xml:"launchTime,omitempty"`
 	TagSet         TagSet            `xml:"tagSet"`
+	GroupSet       GroupSet          `xml:"groupSet"`
 }
 
 // ReservationItem はレスポンス内の Reservation 要素です。
@@ -118,5 +131,45 @@ type DeleteTagsResponse struct {
 	XMLName   xml.Name `xml:"DeleteTagsResponse"`
 	RequestId string   `xml:"requestId"`
 	Return    bool     `xml:"return"`
+}
+
+// KeyPairItem はレスポンス内の KeyPair 要素です。
+type KeyPairItem struct {
+	KeyName        string `xml:"keyName"`
+	KeyFingerprint string `xml:"keyFingerprint"`
+	KeyPairId      string `xml:"keyPairId"`
+}
+
+// CreateKeyPairResponse は CreateKeyPair アクションのレスポンスです。
+type CreateKeyPairResponse struct {
+	XMLName        xml.Name `xml:"CreateKeyPairResponse"`
+	RequestId      string   `xml:"requestId"`
+	KeyName        string   `xml:"keyName"`
+	KeyFingerprint string   `xml:"keyFingerprint"`
+	KeyMaterial    string   `xml:"keyMaterial"`
+	KeyPairId      string   `xml:"keyPairId"`
+}
+
+// ImportKeyPairResponse は ImportKeyPair アクションのレスポンスです。
+type ImportKeyPairResponse struct {
+	XMLName        xml.Name `xml:"ImportKeyPairResponse"`
+	RequestId      string   `xml:"requestId"`
+	KeyName        string   `xml:"keyName"`
+	KeyFingerprint string   `xml:"keyFingerprint"`
+	KeyPairId      string   `xml:"keyPairId"`
+}
+
+// DeleteKeyPairResponse は DeleteKeyPair アクションのレスポンスです。
+type DeleteKeyPairResponse struct {
+	XMLName   xml.Name `xml:"DeleteKeyPairResponse"`
+	RequestId string   `xml:"requestId"`
+	Return    bool     `xml:"return"`
+}
+
+// DescribeKeyPairsResponse は DescribeKeyPairs アクションのレスポンスです。
+type DescribeKeyPairsResponse struct {
+	XMLName   xml.Name      `xml:"DescribeKeyPairsResponse"`
+	RequestId string        `xml:"requestId"`
+	KeySet    []KeyPairItem `xml:"keySet>item"`
 }
 

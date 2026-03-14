@@ -72,6 +72,14 @@ func (e *EC2Service) HandleRequest(ctx context.Context, req service.Request) (se
 		return e.deleteTags(ctx, req)
 	case "DescribeTags":
 		return e.describeTags(ctx, req)
+	case "CreateKeyPair":
+		return e.createKeyPair(ctx, req)
+	case "ImportKeyPair":
+		return e.importKeyPair(ctx, req)
+	case "DeleteKeyPair":
+		return e.deleteKeyPair(ctx, req)
+	case "DescribeKeyPairs":
+		return e.describeKeyPairs(ctx, req)
 	default:
 		return errorResponse(http.StatusBadRequest, "UnsupportedOperation",
 			fmt.Sprintf("The action %q is not supported by this service.", req.Action))
@@ -89,6 +97,10 @@ func (e *EC2Service) SupportedActions() []string {
 		"CreateTags",
 		"DeleteTags",
 		"DescribeTags",
+		"CreateKeyPair",
+		"ImportKeyPair",
+		"DeleteKeyPair",
+		"DescribeKeyPairs",
 	}
 }
 

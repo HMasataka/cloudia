@@ -91,12 +91,12 @@ func TestEC2Service_Provider(t *testing.T) {
 	}
 }
 
-// TestEC2Service_SupportedActions は SupportedActions() が8アクションを含むことを検証します。
+// TestEC2Service_SupportedActions は SupportedActions() が12アクションを含むことを検証します。
 func TestEC2Service_SupportedActions(t *testing.T) {
 	svc := ec2.NewEC2Service(config.AWSAuthConfig{}, zap.NewNop())
 	actions := svc.SupportedActions()
-	if len(actions) != 8 {
-		t.Errorf("SupportedActions() returned %d actions, want 8: %v", len(actions), actions)
+	if len(actions) != 12 {
+		t.Errorf("SupportedActions() returned %d actions, want 12: %v", len(actions), actions)
 	}
 	expected := []string{
 		"RunInstances",
@@ -107,6 +107,10 @@ func TestEC2Service_SupportedActions(t *testing.T) {
 		"CreateTags",
 		"DeleteTags",
 		"DescribeTags",
+		"CreateKeyPair",
+		"ImportKeyPair",
+		"DeleteKeyPair",
+		"DescribeKeyPairs",
 	}
 	actionSet := make(map[string]struct{}, len(actions))
 	for _, a := range actions {
@@ -531,5 +535,165 @@ func TestEC2Service_StartInstances(t *testing.T) {
 	}
 	if !strings.Contains(startBody, "<code>16</code>") {
 		t.Errorf("StartInstances: missing state code 16: %s", startBody)
+	}
+}
+
+// TestEC2Service_CreateKeyPair は CreateKeyPair が PEM 秘密鍵と fingerprint を返すことを検証します。
+func TestEC2Service_CreateKeyPair(t *testing.T) {
+	svc, _, _ := newTestEC2Service(t)
+
+	resp := handleEC2Request(t, svc, "CreateKeyPair", map[string]string{
+		"KeyName": "my-key",
+	})
+	if resp.StatusCode != 200 {
+		t.Fatalf("CreateKeyPair: expected 200, got %d. body=%s", resp.StatusCode, resp.Body)
+	}
+	body := string(resp.Body)
+	if !strings.Contains(body, "<keyName>my-key</keyName>") {
+		t.Errorf("CreateKeyPair: missing keyName in response: %s", body)
+	}
+	if !strings.Contains(body, "BEGIN RSA PRIVATE KEY") {
+		t.Errorf("CreateKeyPair: missing PEM private key in response: %s", body)
+	}
+	if !strings.Contains(body, "<keyFingerprint>") {
+		t.Errorf("CreateKeyPair: missing keyFingerprint in response: %s", body)
+	}
+	if !strings.Contains(body, "<keyPairId>key-") {
+		t.Errorf("CreateKeyPair: missing keyPairId in response: %s", body)
+	}
+}
+
+// TestEC2Service_CreateKeyPair_Duplicate は同名のキーペアに対して InvalidKeyPair.Duplicate を返すことを検証します。
+func TestEC2Service_CreateKeyPair_Duplicate(t *testing.T) {
+	svc, _, _ := newTestEC2Service(t)
+
+	handleEC2Request(t, svc, "CreateKeyPair", map[string]string{
+		"KeyName": "dup-key",
+	})
+
+	resp, err := svc.HandleRequest(context.Background(), service.Request{
+		Provider: "aws",
+		Service:  "ec2",
+		Action:   "CreateKeyPair",
+		Params:   map[string]string{"KeyName": "dup-key"},
+	})
+	if err != nil {
+		t.Fatalf("CreateKeyPair duplicate: unexpected error: %v", err)
+	}
+	if resp.StatusCode == 200 {
+		t.Fatal("CreateKeyPair duplicate: expected error, got 200")
+	}
+	if !strings.Contains(string(resp.Body), "InvalidKeyPair.Duplicate") {
+		t.Errorf("CreateKeyPair duplicate: expected InvalidKeyPair.Duplicate in response: %s", resp.Body)
+	}
+}
+
+// TestEC2Service_ImportKeyPair は ImportKeyPair がフィンガープリントを返すことを検証します。
+func TestEC2Service_ImportKeyPair(t *testing.T) {
+	svc, _, _ := newTestEC2Service(t)
+
+	// テスト用の公開鍵 DER を Base64 エンコードした値 (minimal stub)
+	// 実際の RSA 公開鍵の代わりにランダムバイトを使用
+	pubKeyBase64 := "dGVzdC1wdWJsaWMta2V5LW1hdGVyaWFs" // "test-public-key-material" in base64
+
+	resp, err := svc.HandleRequest(context.Background(), service.Request{
+		Provider: "aws",
+		Service:  "ec2",
+		Action:   "ImportKeyPair",
+		Params: map[string]string{
+			"KeyName":           "imported-key",
+			"PublicKeyMaterial": pubKeyBase64,
+		},
+	})
+	if err != nil {
+		t.Fatalf("ImportKeyPair: unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Fatalf("ImportKeyPair: expected 200, got %d. body=%s", resp.StatusCode, resp.Body)
+	}
+	body := string(resp.Body)
+	if !strings.Contains(body, "<keyName>imported-key</keyName>") {
+		t.Errorf("ImportKeyPair: missing keyName in response: %s", body)
+	}
+	if !strings.Contains(body, "<keyFingerprint>") {
+		t.Errorf("ImportKeyPair: missing keyFingerprint in response: %s", body)
+	}
+	if !strings.Contains(body, "<keyPairId>key-") {
+		t.Errorf("ImportKeyPair: missing keyPairId in response: %s", body)
+	}
+}
+
+// TestEC2Service_DescribeKeyPairs は DescribeKeyPairs がキーペア一覧を返すことを検証します。
+func TestEC2Service_DescribeKeyPairs(t *testing.T) {
+	svc, _, _ := newTestEC2Service(t)
+
+	handleEC2Request(t, svc, "CreateKeyPair", map[string]string{"KeyName": "key-a"})
+	handleEC2Request(t, svc, "CreateKeyPair", map[string]string{"KeyName": "key-b"})
+
+	// フィルタなしで全件取得
+	resp := handleEC2Request(t, svc, "DescribeKeyPairs", map[string]string{})
+	if resp.StatusCode != 200 {
+		t.Fatalf("DescribeKeyPairs: expected 200, got %d. body=%s", resp.StatusCode, resp.Body)
+	}
+	body := string(resp.Body)
+	if !strings.Contains(body, "key-a") {
+		t.Errorf("DescribeKeyPairs: missing key-a in response: %s", body)
+	}
+	if !strings.Contains(body, "key-b") {
+		t.Errorf("DescribeKeyPairs: missing key-b in response: %s", body)
+	}
+
+	// key-name フィルタで絞り込み
+	filtResp := handleEC2Request(t, svc, "DescribeKeyPairs", map[string]string{
+		"Filter.1.Name":    "key-name",
+		"Filter.1.Value.1": "key-a",
+	})
+	if filtResp.StatusCode != 200 {
+		t.Fatalf("DescribeKeyPairs filter: expected 200, got %d. body=%s", filtResp.StatusCode, filtResp.Body)
+	}
+	filtBody := string(filtResp.Body)
+	if !strings.Contains(filtBody, "key-a") {
+		t.Errorf("DescribeKeyPairs filter: missing key-a in response: %s", filtBody)
+	}
+	if strings.Contains(filtBody, "key-b") {
+		t.Errorf("DescribeKeyPairs filter: unexpected key-b in filtered response: %s", filtBody)
+	}
+}
+
+// TestEC2Service_DeleteKeyPair はキーペアを削除できることを検証します。
+func TestEC2Service_DeleteKeyPair(t *testing.T) {
+	svc, _, _ := newTestEC2Service(t)
+
+	handleEC2Request(t, svc, "CreateKeyPair", map[string]string{"KeyName": "to-delete"})
+
+	delResp := handleEC2Request(t, svc, "DeleteKeyPair", map[string]string{
+		"KeyName": "to-delete",
+	})
+	if delResp.StatusCode != 200 {
+		t.Fatalf("DeleteKeyPair: expected 200, got %d. body=%s", delResp.StatusCode, delResp.Body)
+	}
+
+	// 削除後は DescribeKeyPairs に現れないことを確認
+	descResp := handleEC2Request(t, svc, "DescribeKeyPairs", map[string]string{})
+	if strings.Contains(string(descResp.Body), "to-delete") {
+		t.Errorf("DeleteKeyPair: key still present after delete: %s", descResp.Body)
+	}
+}
+
+// TestEC2Service_DeleteKeyPair_NonExistent は存在しないキーペアの削除が成功することを検証します (冪等性)。
+func TestEC2Service_DeleteKeyPair_NonExistent(t *testing.T) {
+	svc, _, _ := newTestEC2Service(t)
+
+	resp, err := svc.HandleRequest(context.Background(), service.Request{
+		Provider: "aws",
+		Service:  "ec2",
+		Action:   "DeleteKeyPair",
+		Params:   map[string]string{"KeyName": "non-existent-key"},
+	})
+	if err != nil {
+		t.Fatalf("DeleteKeyPair non-existent: unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Fatalf("DeleteKeyPair non-existent: expected 200, got %d. body=%s", resp.StatusCode, resp.Body)
 	}
 }

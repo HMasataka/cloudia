@@ -1,6 +1,8 @@
 package gcp
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 
 	"github.com/HMasataka/cloudia/internal/service"
@@ -21,11 +23,22 @@ func (c *GCPCodec) DecodeRequest(r *http.Request) (service.Request, error) {
 		"Content-Type": r.Header.Get("Content-Type"),
 	}
 
+	var body []byte
+	if r.Body != nil {
+		body, err = io.ReadAll(r.Body)
+		if err != nil {
+			return service.Request{}, err
+		}
+		r.Body = io.NopCloser(bytes.NewReader(body))
+	}
+
 	return service.Request{
 		Provider: "gcp",
 		Service:  svc,
 		Action:   resourcePath,
+		Method:   r.Method,
 		Params:   map[string]string{},
+		Body:     body,
 		Headers:  headers,
 	}, nil
 }

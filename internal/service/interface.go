@@ -19,6 +19,7 @@ type Request struct {
 	Provider string
 	Service  string
 	Action   string
+	Method   string
 	Params   map[string]string
 	Body     []byte
 	Headers  map[string]string

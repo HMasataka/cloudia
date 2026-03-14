@@ -16,6 +16,14 @@ var ActionServiceOverride = map[actionServiceKey]string{
 	{provider: "aws", service: "ec2", action: "CreateSubnet"}:    "vpc",
 	{provider: "aws", service: "ec2", action: "DeleteSubnet"}:    "vpc",
 	{provider: "aws", service: "ec2", action: "DescribeSubnets"}: "vpc",
+	// EC2 SecurityGroup アクションを "sg" サービスへ振り分けます。
+	{provider: "aws", service: "ec2", action: "CreateSecurityGroup"}:             "sg",
+	{provider: "aws", service: "ec2", action: "DeleteSecurityGroup"}:             "sg",
+	{provider: "aws", service: "ec2", action: "DescribeSecurityGroups"}:          "sg",
+	{provider: "aws", service: "ec2", action: "AuthorizeSecurityGroupIngress"}:   "sg",
+	{provider: "aws", service: "ec2", action: "RevokeSecurityGroupIngress"}:      "sg",
+	{provider: "aws", service: "ec2", action: "AuthorizeSecurityGroupEgress"}:    "sg",
+	{provider: "aws", service: "ec2", action: "RevokeSecurityGroupEgress"}:       "sg",
 }
 
 // ResolveServiceName はマッピングテーブルを参照し、一致するエントリがあればサービス名を書き換えて返します。

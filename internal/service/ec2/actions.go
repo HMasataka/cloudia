@@ -202,6 +202,15 @@ func instanceItemFromResource(r *models.Resource) InstanceItem {
 		tagItems = append(tagItems, TagItem{Key: k, Value: v})
 	}
 
+	var groupItems []GroupItem
+	if sgIDs, ok := r.Spec["SecurityGroupIds"].([]interface{}); ok {
+		for _, sid := range sgIDs {
+			if s, ok := sid.(string); ok {
+				groupItems = append(groupItems, GroupItem{GroupId: s})
+			}
+		}
+	}
+
 	item := InstanceItem{
 		InstanceId:     r.ID,
 		ImageId:        imageID,
@@ -210,6 +219,7 @@ func instanceItemFromResource(r *models.Resource) InstanceItem {
 		PrivateIp:      privateIP,
 		PrivateDNSName: privateDNSName(privateIP),
 		TagSet:         TagSet{Items: tagItems},
+		GroupSet:       GroupSet{Items: groupItems},
 	}
 
 	if lt, ok := r.Spec["LaunchTime"].(time.Time); ok {
@@ -258,6 +268,28 @@ func (e *EC2Service) runInstances(ctx context.Context, req service.Request) (ser
 	}
 	if maxCount < minCount {
 		maxCount = minCount
+	}
+
+	// SecurityGroupId.N パラメータを収集
+	var securityGroupIDs []string
+	for i := 1; ; i++ {
+		key := fmt.Sprintf("SecurityGroupId.%d", i)
+		sgID, ok := req.Params[key]
+		if !ok || sgID == "" {
+			break
+		}
+		securityGroupIDs = append(securityGroupIDs, sgID)
+	}
+
+	// 各 SG ID の存在確認
+	for _, sgID := range securityGroupIDs {
+		if _, err := e.store.Get(ctx, kindSecurityGroup, sgID); err != nil {
+			if errors.Is(err, models.ErrNotFound) {
+				return errorResponse(http.StatusBadRequest, "InvalidGroup.NotFound",
+					fmt.Sprintf("The security group '%s' does not exist.", sgID))
+			}
+			return service.Response{StatusCode: http.StatusInternalServerError}, err
+		}
 	}
 
 	// コンテナ数制限チェック
@@ -341,6 +373,13 @@ func (e *EC2Service) runInstances(ctx context.Context, req service.Request) (ser
 		privateIP := info.IPAddress
 
 		now := time.Now().UTC()
+
+		// SecurityGroupIds を []interface{} に変換して保存
+		var sgIDsIface []interface{}
+		for _, sid := range securityGroupIDs {
+			sgIDsIface = append(sgIDsIface, sid)
+		}
+
 		resource := &models.Resource{
 			Kind:        kindInstance,
 			ID:          instanceID,
@@ -359,6 +398,7 @@ func (e *EC2Service) runInstances(ctx context.Context, req service.Request) (ser
 				"LaunchTime":       now,
 				"StateCode":        stateCodeRunning,
 				"StateName":        stateNameRunning,
+				"SecurityGroupIds": sgIDsIface,
 			},
 		}
 
