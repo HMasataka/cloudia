@@ -198,13 +198,11 @@ CLI → Gateway → Auth (SigV4/OAuth) → Protocol (XML/JSON変換) → Service
 **ゴール**: Lambda 関数のデプロイと実行が Docker コンテナ上で動作する
 **完動品としての価値**: Terraform で Lambda 関数を作成し、Invoke で実行可能
 
-- [ ] Lambda バックエンド (`internal/backend/lambda/backend.go`): ランタイムコンテナの起動・管理、関数コードのマウント（State Store 内の一時ディレクトリにアップロードし Docker ボリュームでマウント）、Invoke 処理（HTTP リクエスト→コンテナ内ランタイム API）
-- [ ] AWS Lambda サービス (`internal/service/aws/lambda/`): service.go, handlers.go, models.go — CreateFunction, DeleteFunction, GetFunction, ListFunctions, UpdateFunctionCode, UpdateFunctionConfiguration, Invoke（同期/非同期）の各ハンドラ実装
-- [ ] ランタイムマッピング: 設定ファイルの `runtime_mappings` から Docker イメージを解決（python3.12, nodejs20.x 等）
-- [ ] Lambda レイヤー: CreateLayerVersion, GetLayerVersion, ListLayers の各ハンドラ実装。ボリュームマウントによる簡易実装
-- [ ] 環境変数設定: 関数作成時の環境変数をコンテナに注入
-- [ ] サービス間通信: Lambda→DynamoDB 等の Docker ネットワーク構成
-- [ ] テスト: Terraform `aws_lambda_function` の apply テスト。Python/Node.js 関数の Invoke テスト
+- [x] ContainerConfig にボリュームマウント (Binds) 追加、Docker ネットワーク統一 (cloudia ネットワーク + EnsureNetwork)
+- [x] AWS Lambda サービス (`internal/service/lambda/`): ProxyService パターンで管理 API (CreateFunction, GetFunction, DeleteFunction, ListFunctions, UpdateFunctionCode) + Invoke API (同期/非同期) 実装
+- [x] Lambda Invoke: RIE ベースのコンテナ遅延起動・常駐、ポート動的割り当て、環境変数注入、タイムアウト処理
+- [x] Lambda 専用ランタイムマッピング (python3.12/3.11, nodejs20.x/18.x, provided.al2023)
+- [x] セキュリティ: functionNameバリデーション、zipサイズ制限 (50MB/250MB)、シンボリックリンクスキップ
 
 ---
 
