@@ -120,7 +120,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 
 	registry := service.NewRegistry()
 
-	if err := registry.Register(s3svc.NewS3Service(cfg.Auth.AWS)); err != nil {
+	if err := registry.Register(s3svc.NewS3Service(cfg.Auth.AWS, logger)); err != nil {
 		return fmt.Errorf("failed to register s3 service: %w", err)
 	}
 

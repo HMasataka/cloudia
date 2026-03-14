@@ -97,7 +97,7 @@ func buildPortMappings(ports map[string]string) (nat.PortSet, nat.PortMap, error
 			return nil, nil, fmt.Errorf("invalid container port %q: %w", containerPort, err)
 		}
 		exposedPorts[p] = struct{}{}
-		portBindings[p] = []nat.PortBinding{{HostIP: "0.0.0.0", HostPort: hostPort}}
+		portBindings[p] = []nat.PortBinding{{HostIP: "127.0.0.1", HostPort: hostPort}}
 	}
 
 	return exposedPorts, portBindings, nil

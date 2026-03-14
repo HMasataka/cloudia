@@ -12,6 +12,7 @@ import (
 	"github.com/HMasataka/cloudia/internal/service"
 	s3svc "github.com/HMasataka/cloudia/internal/service/s3"
 	"github.com/HMasataka/cloudia/pkg/models"
+	"go.uber.org/zap"
 )
 
 // --- stubs ---
@@ -58,7 +59,7 @@ func (s *stubContainerRunner) RemoveContainer(_ context.Context, _ string) error
 // --- S3Service identity tests ---
 
 func TestS3Service_Name(t *testing.T) {
-	svc := s3svc.NewS3Service(config.AWSAuthConfig{})
+	svc := s3svc.NewS3Service(config.AWSAuthConfig{}, zap.NewNop())
 
 	if got := svc.Name(); got != "s3" {
 		t.Errorf("Name() = %q, want %q", got, "s3")
@@ -66,7 +67,7 @@ func TestS3Service_Name(t *testing.T) {
 }
 
 func TestS3Service_Provider(t *testing.T) {
-	svc := s3svc.NewS3Service(config.AWSAuthConfig{})
+	svc := s3svc.NewS3Service(config.AWSAuthConfig{}, zap.NewNop())
 
 	if got := svc.Provider(); got != "aws" {
 		t.Errorf("Provider() = %q, want %q", got, "aws")
@@ -74,7 +75,7 @@ func TestS3Service_Provider(t *testing.T) {
 }
 
 func TestS3Service_SupportedActions(t *testing.T) {
-	svc := s3svc.NewS3Service(config.AWSAuthConfig{})
+	svc := s3svc.NewS3Service(config.AWSAuthConfig{}, zap.NewNop())
 	actions := svc.SupportedActions()
 
 	expected := []string{
@@ -99,7 +100,7 @@ func TestS3Service_SupportedActions(t *testing.T) {
 }
 
 func TestS3Service_HandleRequest_ReturnsErrUnsupportedOperation(t *testing.T) {
-	svc := s3svc.NewS3Service(config.AWSAuthConfig{})
+	svc := s3svc.NewS3Service(config.AWSAuthConfig{}, zap.NewNop())
 
 	_, err := svc.HandleRequest(context.Background(), service.Request{})
 
@@ -114,7 +115,7 @@ func TestS3Service_Init_PortAllocateError_ReturnsError(t *testing.T) {
 	svc := s3svc.NewS3Service(config.AWSAuthConfig{
 		AccessKey: "testkey",
 		SecretKey: "testsecret",
-	})
+	}, zap.NewNop())
 
 	allocErr := errors.New("no ports available")
 	deps := service.ServiceDeps{
@@ -136,7 +137,7 @@ func TestS3Service_Init_RunContainerError_ReleasesPort(t *testing.T) {
 	svc := s3svc.NewS3Service(config.AWSAuthConfig{
 		AccessKey: "testkey",
 		SecretKey: "testsecret",
-	})
+	}, zap.NewNop())
 
 	portAlloc := &stubPortAllocator{allocatedPort: 19000}
 	runner := &stubContainerRunner{runErr: errors.New("docker error")}
@@ -163,7 +164,7 @@ func TestS3Service_Health_WhenMinioReady_ReturnsHealthy(t *testing.T) {
 	}))
 	defer server.Close()
 
-	svc := s3svc.NewS3ServiceWithEndpoint(config.AWSAuthConfig{}, server.URL)
+	svc := s3svc.NewS3ServiceWithEndpoint(config.AWSAuthConfig{}, server.URL, nil)
 
 	status := svc.Health(context.Background())
 
@@ -173,7 +174,7 @@ func TestS3Service_Health_WhenMinioReady_ReturnsHealthy(t *testing.T) {
 }
 
 func TestS3Service_Health_WhenMinioUnavailable_ReturnsUnhealthy(t *testing.T) {
-	svc := s3svc.NewS3ServiceWithEndpoint(config.AWSAuthConfig{}, "http://localhost:19999")
+	svc := s3svc.NewS3ServiceWithEndpoint(config.AWSAuthConfig{}, "http://localhost:19999", nil)
 
 	status := svc.Health(context.Background())
 
@@ -191,7 +192,7 @@ func TestS3Service_ServeHTTP_ProxiesToMinIO(t *testing.T) {
 	}))
 	defer backend.Close()
 
-	svc := s3svc.NewS3ServiceWithEndpoint(config.AWSAuthConfig{}, backend.URL)
+	svc := s3svc.NewS3ServiceWithEndpoint(config.AWSAuthConfig{}, backend.URL, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/test-bucket/key", nil)
 	rec := httptest.NewRecorder()

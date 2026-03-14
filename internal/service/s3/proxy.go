@@ -1,7 +1,6 @@
 package s3
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -45,9 +44,9 @@ func (s *S3Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(target)
-	proxy.ErrorHandler = func(rw http.ResponseWriter, req *http.Request, proxyErr error) {
+	proxy.ErrorHandler = func(rw http.ResponseWriter, req *http.Request, _ error) {
 		bucket, _ := parsePath(req.URL.Path)
-		aws.WriteS3Error(rw, http.StatusBadGateway, "ServiceUnavailable", fmt.Sprintf("minio unreachable: %s", proxyErr.Error()), bucket, "")
+		aws.WriteS3Error(rw, http.StatusBadGateway, "ServiceUnavailable", "backend storage service is temporarily unavailable", bucket, "")
 	}
 
 	rec := &responseRecorder{ResponseWriter: w, statusCode: http.StatusOK}

@@ -73,7 +73,7 @@ func minioMux(t *testing.T) http.Handler {
 func newIntegrationSvc(t *testing.T, backendURL string) *s3svc.S3Service {
 	t.Helper()
 	store := state.NewMemoryStore()
-	return s3svc.NewS3ServiceWithEndpointAndStore(config.AWSAuthConfig{}, backendURL, store)
+	return s3svc.NewS3ServiceWithEndpoint(config.AWSAuthConfig{}, backendURL, store)
 }
 
 func TestIntegration_CreateBucket(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/HMasataka/cloudia/pkg/models"
+	"go.uber.org/zap"
 )
 
 const (
@@ -14,12 +15,7 @@ const (
 )
 
 // updateStateOnSuccess updates the State Store when a bucket operation succeeds.
-// CreateBucket (PUT /{bucket}, 200) writes a Resource; DeleteBucket (DELETE /{bucket}, 204) removes it.
 func (s *S3Service) updateStateOnSuccess(r *http.Request, statusCode int) {
-	if s.store == nil {
-		return
-	}
-
 	bucket, key := parsePath(r.URL.Path)
 	if bucket == "" || key != "" {
 		return
@@ -43,9 +39,13 @@ func (s *S3Service) createBucketResource(r *http.Request, bucket string) {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	_ = s.store.Put(r.Context(), resource)
+	if err := s.store.Put(r.Context(), resource); err != nil {
+		s.logger.Error("failed to record bucket in state store", zap.String("bucket", bucket), zap.Error(err))
+	}
 }
 
 func (s *S3Service) deleteBucketResource(r *http.Request, bucket string) {
-	_ = s.store.Delete(r.Context(), resourceKind, bucket)
+	if err := s.store.Delete(r.Context(), resourceKind, bucket); err != nil {
+		s.logger.Error("failed to remove bucket from state store", zap.String("bucket", bucket), zap.Error(err))
+	}
 }

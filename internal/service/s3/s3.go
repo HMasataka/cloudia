@@ -6,39 +6,34 @@ import (
 	"github.com/HMasataka/cloudia/internal/config"
 	"github.com/HMasataka/cloudia/internal/service"
 	"github.com/HMasataka/cloudia/pkg/models"
+	"go.uber.org/zap"
 )
 
 // S3Service implements service.Service and service.ProxyService for MinIO-backed S3 emulation.
 type S3Service struct {
-	cfg   config.AWSAuthConfig
-	minio *minioBackend
-	store service.Store
+	cfg    config.AWSAuthConfig
+	minio  *minioBackend
+	store  service.Store
+	logger *zap.Logger
 }
 
 // NewS3Service creates a new S3Service with the given AWS auth configuration.
-func NewS3Service(cfg config.AWSAuthConfig) *S3Service {
+func NewS3Service(cfg config.AWSAuthConfig, logger *zap.Logger) *S3Service {
 	return &S3Service{
-		cfg:   cfg,
-		minio: &minioBackend{},
+		cfg:    cfg,
+		minio:  &minioBackend{},
+		logger: logger,
 	}
 }
 
 // NewS3ServiceWithEndpoint creates an S3Service that targets an existing MinIO endpoint.
 // Intended for testing without Docker integration.
-func NewS3ServiceWithEndpoint(cfg config.AWSAuthConfig, endpoint string) *S3Service {
+func NewS3ServiceWithEndpoint(cfg config.AWSAuthConfig, endpoint string, store service.Store) *S3Service {
 	return &S3Service{
-		cfg:   cfg,
-		minio: newMinioBackendWithURL(endpoint),
-	}
-}
-
-// NewS3ServiceWithEndpointAndStore creates an S3Service with a preset endpoint and Store.
-// Intended for testing proxy and state integration without Docker.
-func NewS3ServiceWithEndpointAndStore(cfg config.AWSAuthConfig, endpoint string, store service.Store) *S3Service {
-	return &S3Service{
-		cfg:   cfg,
-		minio: newMinioBackendWithURL(endpoint),
-		store: store,
+		cfg:    cfg,
+		minio:  newMinioBackendWithURL(endpoint),
+		store:  store,
+		logger: zap.NewNop(),
 	}
 }
 

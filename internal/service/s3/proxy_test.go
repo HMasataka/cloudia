@@ -28,7 +28,7 @@ func TestServeHTTP_CreateBucket_200_StoresResource(t *testing.T) {
 	}))
 	defer backend.Close()
 
-	svc := s3svc.NewS3ServiceWithEndpointAndStore(config.AWSAuthConfig{}, backend.URL, store)
+	svc := s3svc.NewS3ServiceWithEndpoint(config.AWSAuthConfig{}, backend.URL, store)
 
 	req := httptest.NewRequest(http.MethodPut, "/my-bucket", nil)
 	rec := httptest.NewRecorder()
@@ -77,7 +77,7 @@ func TestServeHTTP_DeleteBucket_204_RemovesResource(t *testing.T) {
 	}))
 	defer backend.Close()
 
-	svc := s3svc.NewS3ServiceWithEndpointAndStore(config.AWSAuthConfig{}, backend.URL, store)
+	svc := s3svc.NewS3ServiceWithEndpoint(config.AWSAuthConfig{}, backend.URL, store)
 
 	req := httptest.NewRequest(http.MethodDelete, "/my-bucket", nil)
 	rec := httptest.NewRecorder()
@@ -105,7 +105,7 @@ func TestServeHTTP_PutObject_DoesNotUpdateStore(t *testing.T) {
 	}))
 	defer backend.Close()
 
-	svc := s3svc.NewS3ServiceWithEndpointAndStore(config.AWSAuthConfig{}, backend.URL, store)
+	svc := s3svc.NewS3ServiceWithEndpoint(config.AWSAuthConfig{}, backend.URL, store)
 
 	req := httptest.NewRequest(http.MethodPut, "/my-bucket/my-key", nil)
 	rec := httptest.NewRecorder()
@@ -127,7 +127,7 @@ func TestServeHTTP_MinioUnavailable_ReturnsS3XmlError(t *testing.T) {
 	// Then: an S3-compatible XML error response with 502 status is returned
 
 	store := state.NewMemoryStore()
-	svc := s3svc.NewS3ServiceWithEndpointAndStore(config.AWSAuthConfig{}, "http://localhost:19998", store)
+	svc := s3svc.NewS3ServiceWithEndpoint(config.AWSAuthConfig{}, "http://localhost:19998", store)
 
 	req := httptest.NewRequest(http.MethodGet, "/my-bucket", nil)
 	rec := httptest.NewRecorder()
@@ -155,7 +155,7 @@ func TestServeHTTP_CreateBucket_Non200_DoesNotUpdateStore(t *testing.T) {
 	}))
 	defer backend.Close()
 
-	svc := s3svc.NewS3ServiceWithEndpointAndStore(config.AWSAuthConfig{}, backend.URL, store)
+	svc := s3svc.NewS3ServiceWithEndpoint(config.AWSAuthConfig{}, backend.URL, store)
 
 	req := httptest.NewRequest(http.MethodPut, "/my-bucket", nil)
 	rec := httptest.NewRecorder()
@@ -182,7 +182,7 @@ func TestServeHTTP_RootPath_DoesNotUpdateStore(t *testing.T) {
 	}))
 	defer backend.Close()
 
-	svc := s3svc.NewS3ServiceWithEndpointAndStore(config.AWSAuthConfig{}, backend.URL, store)
+	svc := s3svc.NewS3ServiceWithEndpoint(config.AWSAuthConfig{}, backend.URL, store)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()

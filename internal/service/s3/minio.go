@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"strconv"
 	"time"
 
@@ -15,7 +13,7 @@ import (
 )
 
 const (
-	minioImage         = "minio/minio:latest"
+	minioImage         = "minio/minio:RELEASE.2025-02-28T09-55-16Z"
 	minioContainerName = "cloudia-minio"
 	minioContainerPort = "9000"
 	minioServiceLabel  = "s3"
@@ -72,16 +70,6 @@ func (m *minioBackend) findOrCreateContainer(
 	deps service.ServiceDeps,
 	hostPort int,
 ) (string, error) {
-	if finder, ok := deps.DockerClient.(*docker.Client); ok {
-		existing, err := finder.FindContainerByServiceLabel(ctx, minioServiceLabel)
-		if err != nil {
-			return "", fmt.Errorf("s3: find existing container: %w", err)
-		}
-		if existing != nil {
-			return existing.ID, nil
-		}
-	}
-
 	return m.runner.RunContainer(ctx, docker.ContainerConfig{
 		Image: minioImage,
 		Name:  minioContainerName,
@@ -125,17 +113,6 @@ func (m *minioBackend) Health(ctx context.Context) service.HealthStatus {
 		return service.HealthStatus{Healthy: false, Message: err.Error()}
 	}
 	return service.HealthStatus{Healthy: true, Message: "ok"}
-}
-
-// ServeHTTP reverse-proxies the request to the MinIO container.
-func (m *minioBackend) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	target, err := url.Parse(m.baseURL)
-	if err != nil {
-		http.Error(w, "invalid minio endpoint", http.StatusInternalServerError)
-		return
-	}
-	proxy := httputil.NewSingleHostReverseProxy(target)
-	proxy.ServeHTTP(w, r)
 }
 
 // waitHealthy polls the MinIO health endpoint until it responds or the attempt limit is reached.
