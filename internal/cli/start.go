@@ -29,7 +29,10 @@ import (
 	s3svc "github.com/HMasataka/cloudia/internal/service/s3"
 	sqssvc "github.com/HMasataka/cloudia/internal/service/sqs"
 	ec2svc "github.com/HMasataka/cloudia/internal/service/ec2"
+	cloudsqlsvc "github.com/HMasataka/cloudia/internal/service/cloudsql"
 	elasticachesvc "github.com/HMasataka/cloudia/internal/service/elasticache"
+	memorystoresvc "github.com/HMasataka/cloudia/internal/service/memorystore"
+	rdssvc "github.com/HMasataka/cloudia/internal/service/rds"
 	sgsvc "github.com/HMasataka/cloudia/internal/service/sg"
 	vpcsvc "github.com/HMasataka/cloudia/internal/service/vpc"
 	"github.com/HMasataka/cloudia/internal/state"
@@ -164,6 +167,18 @@ func runStart(cmd *cobra.Command, args []string) error {
 
 	if err := registry.Register(elasticachesvc.NewElastiCacheService(cfg.Auth.AWS, logger)); err != nil {
 		return fmt.Errorf("failed to register elasticache service: %w", err)
+	}
+
+	if err := registry.Register(rdssvc.NewRDSService(cfg.Auth.AWS, logger)); err != nil {
+		return fmt.Errorf("failed to register rds service: %w", err)
+	}
+
+	if err := registry.Register(memorystoresvc.NewMemorystoreService(logger)); err != nil {
+		return fmt.Errorf("failed to register memorystore service: %w", err)
+	}
+
+	if err := registry.Register(cloudsqlsvc.NewCloudSQLService(logger)); err != nil {
+		return fmt.Errorf("failed to register cloudsql service: %w", err)
 	}
 
 	if err := registry.InitAll(ctx, deps); err != nil {
