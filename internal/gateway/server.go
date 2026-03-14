@@ -11,28 +11,30 @@ import (
 	"github.com/HMasataka/cloudia/internal/config"
 	"github.com/HMasataka/cloudia/internal/gateway/imds"
 	"github.com/HMasataka/cloudia/internal/state"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 )
 
 // Server は HTTP サーバーを保持します。
 type Server struct {
-	httpServer *http.Server
-	endpoints  map[string]*http.Server
-	imdsServer *imds.Server
-	logger     *zap.Logger
+	httpServer    *http.Server
+	endpoints     map[string]*http.Server
+	imdsServer    *imds.Server
+	metricsServer *http.Server
+	logger        *zap.Logger
 }
 
 // NewServer は Server のコンストラクタです。
-func NewServer(cfg config.ServerConfig, endpointsCfg config.EndpointsConfig, router http.Handler, logger *zap.Logger) *Server {
-	return newServer(cfg, endpointsCfg, router, nil, logger)
+func NewServer(cfg config.ServerConfig, endpointsCfg config.EndpointsConfig, metricsCfg config.MetricsConfig, router http.Handler, logger *zap.Logger) *Server {
+	return newServer(cfg, endpointsCfg, metricsCfg, router, nil, logger)
 }
 
 // NewServerWithStore は Store を受け取り IMDS サーバーも管理する Server を返します。
-func NewServerWithStore(cfg config.ServerConfig, endpointsCfg config.EndpointsConfig, router http.Handler, store state.Store, logger *zap.Logger) *Server {
-	return newServer(cfg, endpointsCfg, router, store, logger)
+func NewServerWithStore(cfg config.ServerConfig, endpointsCfg config.EndpointsConfig, metricsCfg config.MetricsConfig, router http.Handler, store state.Store, logger *zap.Logger) *Server {
+	return newServer(cfg, endpointsCfg, metricsCfg, router, store, logger)
 }
 
-func newServer(cfg config.ServerConfig, endpointsCfg config.EndpointsConfig, router http.Handler, store state.Store, logger *zap.Logger) *Server {
+func newServer(cfg config.ServerConfig, endpointsCfg config.EndpointsConfig, metricsCfg config.MetricsConfig, router http.Handler, store state.Store, logger *zap.Logger) *Server {
 	endpoints := make(map[string]*http.Server, len(endpointsCfg.Services))
 	for name, svc := range endpointsCfg.Services {
 		endpoints[name] = &http.Server{
@@ -48,6 +50,18 @@ func newServer(cfg config.ServerConfig, endpointsCfg config.EndpointsConfig, rou
 		imdsSrv = imds.New(cfg.IMDS.Address, store, logger)
 	}
 
+	var metricsSrv *http.Server
+	if metricsCfg.Enabled {
+		metricsMux := http.NewServeMux()
+		metricsMux.Handle("/metrics", promhttp.Handler())
+		metricsSrv = &http.Server{
+			Addr:              fmt.Sprintf(":%d", metricsCfg.Port),
+			Handler:           metricsMux,
+			ReadHeaderTimeout: 10 * time.Second,
+			IdleTimeout:       120 * time.Second,
+		}
+	}
+
 	return &Server{
 		httpServer: &http.Server{
 			Addr:              fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
@@ -55,9 +69,10 @@ func newServer(cfg config.ServerConfig, endpointsCfg config.EndpointsConfig, rou
 			ReadHeaderTimeout: 10 * time.Second,
 			IdleTimeout:       120 * time.Second,
 		},
-		endpoints:  endpoints,
-		imdsServer: imdsSrv,
-		logger:     logger,
+		endpoints:     endpoints,
+		imdsServer:    imdsSrv,
+		metricsServer: metricsSrv,
+		logger:        logger,
 	}
 }
 
@@ -78,6 +93,12 @@ func (s *Server) Start() error {
 	if s.imdsServer != nil {
 		if err := s.imdsServer.Start(); err != nil {
 			return fmt.Errorf("imds server: %w", err)
+		}
+	}
+
+	if s.metricsServer != nil {
+		if err := s.startServer(s.metricsServer); err != nil {
+			return fmt.Errorf("metrics server: %w", err)
 		}
 	}
 
@@ -118,6 +139,12 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if s.imdsServer != nil {
 		if err := s.imdsServer.Shutdown(ctx); err != nil {
 			errs = append(errs, fmt.Errorf("imds server: %w", err))
+		}
+	}
+
+	if s.metricsServer != nil {
+		if err := s.metricsServer.Shutdown(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("metrics server: %w", err))
 		}
 	}
 

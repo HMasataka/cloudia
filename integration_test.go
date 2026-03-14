@@ -56,7 +56,7 @@ func TestIntegration_GatewayServer(t *testing.T) {
 	registry := service.NewRegistry()
 	serviceHandler := gateway.NewServiceHandler(verifiers, codecs, registry, logger)
 	router := gateway.NewRouter(adminHandler, serviceHandler, logger, cfg.Server.Timeout)
-	server := gateway.NewServer(cfg.Server, cfg.Endpoints, router, logger)
+	server := gateway.NewServer(cfg.Server, cfg.Endpoints, cfg.Metrics, router, logger)
 
 	// d. サーバー起動
 	if err := server.Start(); err != nil {

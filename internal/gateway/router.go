@@ -20,6 +20,7 @@ func NewRouter(adminHandler *admin.Handler, serviceHandler *ServiceHandler, logg
 
 	var handler http.Handler = mux
 	handler = middleware.Timeout(timeout)(handler)
+	handler = middleware.Metrics()(handler)
 	handler = middleware.Logging(logger)(handler)
 	handler = middleware.Recovery(logger)(handler)
 

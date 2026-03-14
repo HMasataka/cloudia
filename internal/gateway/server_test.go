@@ -33,7 +33,7 @@ func TestServer_StartShutdown_MainPortOnly(t *testing.T) {
 	endpointsCfg := config.EndpointsConfig{}
 	logger := zap.NewNop()
 
-	srv := gateway.NewServer(cfg, endpointsCfg, http.NewServeMux(), logger)
+	srv := gateway.NewServer(cfg, endpointsCfg, config.MetricsConfig{}, http.NewServeMux(), logger)
 
 	// When: server starts
 	if err := srv.Start(); err != nil {
@@ -63,7 +63,7 @@ func TestServer_StartShutdown_WithEndpoints(t *testing.T) {
 	}
 	logger := zap.NewNop()
 
-	srv := gateway.NewServer(cfg, endpointsCfg, http.NewServeMux(), logger)
+	srv := gateway.NewServer(cfg, endpointsCfg, config.MetricsConfig{}, http.NewServeMux(), logger)
 
 	// When: server starts
 	if err := srv.Start(); err != nil {
@@ -94,7 +94,7 @@ func TestServer_Shutdown_StopsAllListeners(t *testing.T) {
 	}
 	logger := zap.NewNop()
 
-	srv := gateway.NewServer(cfg, endpointsCfg, http.NewServeMux(), logger)
+	srv := gateway.NewServer(cfg, endpointsCfg, config.MetricsConfig{}, http.NewServeMux(), logger)
 
 	if err := srv.Start(); err != nil {
 		t.Fatalf("Start failed: %v", err)
@@ -111,6 +111,42 @@ func TestServer_Shutdown_StopsAllListeners(t *testing.T) {
 	// Then: ports are no longer accepting connections
 	assertPortClosed(t, mainPort)
 	assertPortClosed(t, svcPort)
+}
+
+func TestServer_MetricsEndpoint(t *testing.T) {
+	// Given: metrics enabled with a dedicated port
+	mainPort := freePort(t)
+	metricsPort := freePort(t)
+	cfg := config.ServerConfig{Host: "127.0.0.1", Port: mainPort}
+	endpointsCfg := config.EndpointsConfig{}
+	metricsCfg := config.MetricsConfig{Enabled: true, Port: metricsPort}
+	logger := zap.NewNop()
+
+	srv := gateway.NewServer(cfg, endpointsCfg, metricsCfg, http.NewServeMux(), logger)
+
+	if err := srv.Start(); err != nil {
+		t.Fatalf("Start failed: %v", err)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctx)
+	}()
+
+	// Allow brief moment for goroutine to start serving.
+	time.Sleep(20 * time.Millisecond)
+
+	// When: GET /metrics on the metrics port
+	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/metrics", metricsPort))
+	if err != nil {
+		t.Fatalf("GET /metrics failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Then: 200 OK
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
+	}
 }
 
 func assertPortOpen(t *testing.T, port int) {

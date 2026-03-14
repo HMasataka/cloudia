@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/HMasataka/cloudia/internal/auth"
+	"github.com/HMasataka/cloudia/internal/gateway/middleware"
 	"github.com/HMasataka/cloudia/internal/protocol"
 	awsprotocol "github.com/HMasataka/cloudia/internal/protocol/aws"
 	gcpprotocol "github.com/HMasataka/cloudia/internal/protocol/gcp"
@@ -64,6 +65,10 @@ func (h *ServiceHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if info := middleware.MetricsInfoFromContext(r.Context()); info != nil {
+		info.Provider = provider
+	}
+
 	codec, ok := h.codecs[provider]
 	if !ok {
 		http.Error(w, fmt.Sprintf("400 Bad Request: unsupported provider %q", provider), http.StatusBadRequest)
@@ -115,6 +120,11 @@ func (h *ServiceHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req.Service = ResolveServiceName(provider, req.Service, req.Action)
+
+	if info := middleware.MetricsInfoFromContext(r.Context()); info != nil {
+		info.Service = req.Service
+		info.Action = req.Action
+	}
 
 	svc, err := h.registry.Resolve(provider, req.Service)
 	if err != nil {
