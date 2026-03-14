@@ -29,6 +29,25 @@ func newTestRDSService(t *testing.T) (*RDSService, *state.MemoryStore) {
 	return svc, store
 }
 
+// newTestRDSServiceWithPostgres は MySQL と PostgreSQL の両バックエンドを持つサービスを構築します。
+// どちらのバックエンドも Init を呼ばない（Docker 依存なし）。
+func newTestRDSServiceWithPostgres(t *testing.T) (*RDSService, *state.MemoryStore) {
+	t.Helper()
+	store := state.NewMemoryStore()
+	mysqlBackend := rdb.NewRDBBackend(&rdb.MySQLEngine{}, zap.NewNop())
+	postgresBackend := rdb.NewRDBBackend(&rdb.PostgreSQLEngine{}, zap.NewNop())
+	svc := &RDSService{
+		backends: map[string]*rdb.RDBBackend{
+			"mysql":    mysqlBackend,
+			"postgres": postgresBackend,
+		},
+		store:  store,
+		cfg:    config.AWSAuthConfig{},
+		logger: zap.NewNop(),
+	}
+	return svc, store
+}
+
 func handleRDSRequest(t *testing.T, svc *RDSService, action string, params map[string]string) service.Response {
 	t.Helper()
 	resp, err := svc.HandleRequest(context.Background(), service.Request{
@@ -320,5 +339,113 @@ func TestRDSService_DeleteDBSnapshot_NotFound(t *testing.T) {
 	}
 	if !strings.Contains(string(resp.Body), "DBSnapshotNotFound") {
 		t.Errorf("DeleteDBSnapshot nonexistent: expected DBSnapshotNotFound: %s", resp.Body)
+	}
+}
+
+// TestRDSService_Postgres_CreateDescribeDelete は Engine: "postgres" での CRUD を検証します。
+func TestRDSService_Postgres_CreateDescribeDelete(t *testing.T) {
+	svc, _ := newTestRDSServiceWithPostgres(t)
+
+	// CreateDBInstance with postgres engine
+	createResp := handleRDSRequest(t, svc, "CreateDBInstance", map[string]string{
+		"DBInstanceIdentifier": "pg-db-1",
+		"DBInstanceClass":      "db.t3.micro",
+		"Engine":               "postgres",
+		"MasterUserPassword":   "password123",
+		"MasterUsername":       "pgadmin",
+	})
+	if createResp.StatusCode != 200 {
+		t.Fatalf("CreateDBInstance (postgres): expected 200, got %d. body=%s", createResp.StatusCode, createResp.Body)
+	}
+	createBody := string(createResp.Body)
+	if !strings.Contains(createBody, "pg-db-1") {
+		t.Errorf("CreateDBInstance (postgres): response missing DBInstanceIdentifier: %s", createBody)
+	}
+	if !strings.Contains(createBody, "available") {
+		t.Errorf("CreateDBInstance (postgres): response missing status available: %s", createBody)
+	}
+	if !strings.Contains(createBody, "postgres") {
+		t.Errorf("CreateDBInstance (postgres): response missing engine postgres: %s", createBody)
+	}
+
+	// DescribeDBInstances で確認
+	descResp := handleRDSRequest(t, svc, "DescribeDBInstances", map[string]string{
+		"DBInstanceIdentifier": "pg-db-1",
+	})
+	if descResp.StatusCode != 200 {
+		t.Fatalf("DescribeDBInstances (postgres): expected 200, got %d. body=%s", descResp.StatusCode, descResp.Body)
+	}
+	descBody := string(descResp.Body)
+	if !strings.Contains(descBody, "pg-db-1") {
+		t.Errorf("DescribeDBInstances (postgres): instance not found: %s", descBody)
+	}
+	if !strings.Contains(descBody, "postgres") {
+		t.Errorf("DescribeDBInstances (postgres): expected engine postgres in response: %s", descBody)
+	}
+
+	// DeleteDBInstance
+	delResp := handleRDSRequest(t, svc, "DeleteDBInstance", map[string]string{
+		"DBInstanceIdentifier": "pg-db-1",
+	})
+	if delResp.StatusCode != 200 {
+		t.Fatalf("DeleteDBInstance (postgres): expected 200, got %d. body=%s", delResp.StatusCode, delResp.Body)
+	}
+	if !strings.Contains(string(delResp.Body), "deleting") {
+		t.Errorf("DeleteDBInstance (postgres): expected deleting status: %s", delResp.Body)
+	}
+}
+
+// TestRDSService_InvalidEngine は Engine: "oracle" で InvalidParameterValue エラーを返すことを検証します。
+func TestRDSService_InvalidEngine(t *testing.T) {
+	svc, _ := newTestRDSService(t)
+
+	resp := handleRDSRequest(t, svc, "CreateDBInstance", map[string]string{
+		"DBInstanceIdentifier": "oracle-db",
+		"Engine":               "oracle",
+		"MasterUserPassword":   "password123",
+	})
+	if resp.StatusCode == 200 {
+		t.Fatal("CreateDBInstance with oracle engine: expected error, got 200")
+	}
+	if !strings.Contains(string(resp.Body), "InvalidParameterValue") {
+		t.Errorf("CreateDBInstance with oracle engine: expected InvalidParameterValue: %s", resp.Body)
+	}
+}
+
+// TestRDSService_MySQL_Postgres_Coexistence は同一サービスで MySQL と PostgreSQL インスタンスが共存できることを検証します。
+func TestRDSService_MySQL_Postgres_Coexistence(t *testing.T) {
+	svc, _ := newTestRDSServiceWithPostgres(t)
+
+	// MySQL インスタンスを作成
+	mysqlResp := handleRDSRequest(t, svc, "CreateDBInstance", map[string]string{
+		"DBInstanceIdentifier": "coexist-mysql",
+		"Engine":               "mysql",
+		"MasterUserPassword":   "password123",
+	})
+	if mysqlResp.StatusCode != 200 {
+		t.Fatalf("CreateDBInstance (mysql coexist): expected 200, got %d. body=%s", mysqlResp.StatusCode, mysqlResp.Body)
+	}
+
+	// PostgreSQL インスタンスを作成
+	pgResp := handleRDSRequest(t, svc, "CreateDBInstance", map[string]string{
+		"DBInstanceIdentifier": "coexist-postgres",
+		"Engine":               "postgres",
+		"MasterUserPassword":   "password123",
+	})
+	if pgResp.StatusCode != 200 {
+		t.Fatalf("CreateDBInstance (postgres coexist): expected 200, got %d. body=%s", pgResp.StatusCode, pgResp.Body)
+	}
+
+	// 両方を DescribeDBInstances で確認
+	allResp := handleRDSRequest(t, svc, "DescribeDBInstances", map[string]string{})
+	if allResp.StatusCode != 200 {
+		t.Fatalf("DescribeDBInstances (all): expected 200, got %d. body=%s", allResp.StatusCode, allResp.Body)
+	}
+	allBody := string(allResp.Body)
+	if !strings.Contains(allBody, "coexist-mysql") {
+		t.Errorf("DescribeDBInstances: mysql instance not found: %s", allBody)
+	}
+	if !strings.Contains(allBody, "coexist-postgres") {
+		t.Errorf("DescribeDBInstances: postgres instance not found: %s", allBody)
 	}
 }

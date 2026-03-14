@@ -202,3 +202,53 @@ func TestRDBBackend_Shutdown(t *testing.T) {
 		t.Errorf("Shutdown() returned unexpected error: %v", err)
 	}
 }
+
+// TestRDBBackend_PostgreSQLEngine_Image は PostgreSQLEngine.Image() が正しいイメージ名を返すことを検証します。
+func TestRDBBackend_PostgreSQLEngine_Image(t *testing.T) {
+	engine := &rdb.PostgreSQLEngine{}
+	if got := engine.Image(); got != "postgres:16" {
+		t.Errorf("PostgreSQLEngine.Image() = %q, want %q", got, "postgres:16")
+	}
+}
+
+// TestRDBBackend_PostgreSQLEngine_DefaultPort は PostgreSQLEngine.DefaultPort() が "5432" を返すことを検証します。
+func TestRDBBackend_PostgreSQLEngine_DefaultPort(t *testing.T) {
+	engine := &rdb.PostgreSQLEngine{}
+	if got := engine.DefaultPort(); got != "5432" {
+		t.Errorf("PostgreSQLEngine.DefaultPort() = %q, want %q", got, "5432")
+	}
+}
+
+// TestRDBBackend_PostgreSQLEngine_ContainerName は PostgreSQLEngine.ContainerName() が "cloudia-postgres" を返すことを検証します。
+func TestRDBBackend_PostgreSQLEngine_ContainerName(t *testing.T) {
+	engine := &rdb.PostgreSQLEngine{}
+	if got := engine.ContainerName(); got != "cloudia-postgres" {
+		t.Errorf("PostgreSQLEngine.ContainerName() = %q, want %q", got, "cloudia-postgres")
+	}
+}
+
+// TestRDBBackend_PostgreSQLEngine_Env は PostgreSQLEngine.Env() が POSTGRES_USER と POSTGRES_PASSWORD を含むことを検証します。
+func TestRDBBackend_PostgreSQLEngine_Env(t *testing.T) {
+	engine := &rdb.PostgreSQLEngine{}
+	env := engine.Env("testpassword")
+	if len(env) == 0 {
+		t.Fatal("PostgreSQLEngine.Env() returned empty slice")
+	}
+
+	foundUser := false
+	foundPassword := false
+	for _, e := range env {
+		if strings.Contains(e, "POSTGRES_USER=postgres") {
+			foundUser = true
+		}
+		if strings.Contains(e, "POSTGRES_PASSWORD=testpassword") {
+			foundPassword = true
+		}
+	}
+	if !foundUser {
+		t.Errorf("PostgreSQLEngine.Env() does not contain POSTGRES_USER=postgres: %v", env)
+	}
+	if !foundPassword {
+		t.Errorf("PostgreSQLEngine.Env() does not contain POSTGRES_PASSWORD=testpassword: %v", env)
+	}
+}

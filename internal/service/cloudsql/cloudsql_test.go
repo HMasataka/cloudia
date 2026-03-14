@@ -235,6 +235,82 @@ func TestCloudSQLService_Insert_Duplicate(t *testing.T) {
 	}
 }
 
+// newTestCloudSQLServiceWithPostgres は MySQL と PostgreSQL の両バックエンドを持つサービスを構築します。
+func newTestCloudSQLServiceWithPostgres(t *testing.T) (*CloudSQLService, *state.MemoryStore) {
+	t.Helper()
+	store := state.NewMemoryStore()
+	svc := &CloudSQLService{
+		store:  store,
+		logger: zap.NewNop(),
+		dbHosts: map[string]string{
+			"mysql":    "localhost",
+			"postgres": "localhost",
+		},
+		dbPorts: map[string]string{
+			"mysql":    "3306",
+			"postgres": "5432",
+		},
+	}
+	return svc, store
+}
+
+// TestCloudSQLService_Postgres_Insert_Get は POSTGRES_16 での insertInstance と getInstance を検証します。
+func TestCloudSQLService_Postgres_Insert_Get(t *testing.T) {
+	svc, _ := newTestCloudSQLServiceWithPostgres(t)
+
+	project := "my-project"
+	instanceName := "my-postgres"
+
+	// Insert
+	insertBody, _ := json.Marshal(map[string]interface{}{
+		"name":            instanceName,
+		"databaseVersion": "POSTGRES_16",
+		"region":          "us-central1",
+		"settings": map[string]interface{}{
+			"tier": "db-custom-2-8192",
+		},
+	})
+	insertResp := handleCloudSQLRequest(t, svc,
+		http.MethodPost,
+		"projects/"+project+"/instances",
+		insertBody,
+	)
+	if insertResp.StatusCode != 200 {
+		t.Fatalf("Insert (POSTGRES_16): expected 200, got %d. body=%s", insertResp.StatusCode, insertResp.Body)
+	}
+	insertBodyStr := string(insertResp.Body)
+	if !strings.Contains(insertBodyStr, instanceName) {
+		t.Errorf("Insert (POSTGRES_16): response missing instance name: %s", insertBodyStr)
+	}
+	if !strings.Contains(insertBodyStr, "DONE") {
+		t.Errorf("Insert (POSTGRES_16): expected operation status DONE: %s", insertBodyStr)
+	}
+
+	// Get
+	getResp := handleCloudSQLRequest(t, svc,
+		http.MethodGet,
+		"projects/"+project+"/instances/"+instanceName,
+		nil,
+	)
+	if getResp.StatusCode != 200 {
+		t.Fatalf("Get (POSTGRES_16): expected 200, got %d. body=%s", getResp.StatusCode, getResp.Body)
+	}
+	getBodyStr := string(getResp.Body)
+	if !strings.Contains(getBodyStr, instanceName) {
+		t.Errorf("Get (POSTGRES_16): instance name not found in response: %s", getBodyStr)
+	}
+	if !strings.Contains(getBodyStr, "RUNNABLE") {
+		t.Errorf("Get (POSTGRES_16): expected RUNNABLE state: %s", getBodyStr)
+	}
+	if !strings.Contains(getBodyStr, "POSTGRES_16") {
+		t.Errorf("Get (POSTGRES_16): expected databaseVersion POSTGRES_16: %s", getBodyStr)
+	}
+	// PostgreSQL バックエンドの IP アドレスが使用されていることを確認
+	if !strings.Contains(getBodyStr, "localhost") {
+		t.Errorf("Get (POSTGRES_16): expected ipAddress from postgres backend: %s", getBodyStr)
+	}
+}
+
 // TestCloudSQLService_List_Empty は空のリストが返ることを検証します。
 func TestCloudSQLService_List_Empty(t *testing.T) {
 	svc, _ := newTestCloudSQLService(t)
