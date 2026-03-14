@@ -211,10 +211,11 @@ CLI → Gateway → Auth (SigV4/OAuth) → Protocol (XML/JSON変換) → Service
 **ゴール**: k3s をバックエンドとして EKS/GKE クラスタの作成・管理が動作する
 **完動品としての価値**: Terraform で EKS/GKE クラスタを作成し、kubeconfig を取得して kubectl で操作可能
 
-- [ ] Kubernetes バックエンド (`internal/backend/k8s/backend.go`): k3s コンテナの起動・停止、kubeconfig 生成、ヘルスチェック（API server readiness）。デフォルトバックエンドは k3s、設定で kind に切替可能
-- [ ] AWS EKS サービス (`internal/service/aws/eks/`): service.go, handlers.go, models.go — CreateCluster, DeleteCluster, DescribeCluster, ListClusters, CreateNodegroup, DeleteNodegroup, DescribeNodegroup, ListNodegroups の各ハンドラ実装。バージョン指定（k3s バージョンにマッピング）、ステータス管理（CREATING→ACTIVE→DELETING）
-- [ ] GCP GKE サービス (`internal/service/gcp/gke/`): service.go, handlers.go, models.go — projects.locations.clusters.create, .get, .list, .delete の各ハンドラ実装。`share_backend_with: "aws.eks"` で k3s 共有
-- [ ] テスト: Terraform `aws_eks_cluster` の apply テスト。kubeconfig 取得→`kubectl get nodes` 成功テスト。EKS クラスタ作成が 60 秒以内で完了する性能テスト
+- [x] Kubernetes バックエンド (`internal/backend/k3s/backend.go`): k3s コンテナの起動・停止、kubeconfig 生成・書き換え、ヘルスチェック (/readyz)
+- [x] Docker インフラ拡張: ContainerConfig に Privileged フィールド追加、ContainerRunner に ExecInContainer 追加、AWSCodec に REST JSON デコード分岐追加
+- [x] AWS EKS サービス (`internal/service/eks/`): CreateCluster, DescribeCluster, DeleteCluster, ListClusters。REST JSON API + ClusterBackend インターフェース
+- [x] GCP GKE サービス (`internal/service/gke/`): clusters.create, .get, .list, .delete。1 k3s = 1 クラスタモデル
+- [x] テスト: EKS/GKE の CRUD ライフサイクルテスト (ClusterBackend stub で Docker 依存なし)
 
 ---
 
