@@ -14,21 +14,32 @@ type DockerLister interface {
 	ListManagedContainers(ctx context.Context) ([]container.Summary, error)
 }
 
+// ContainerRemover は孤立コンテナを削除するインターフェースです。
+type ContainerRemover interface {
+	RemoveContainer(ctx context.Context, containerID string) error
+}
+
+// maxOrphanCleanupPerReconcile は 1 回の reconcile で削除する孤立コンテナの最大件数です。
+const maxOrphanCleanupPerReconcile = 10
+
 // Reconciler は State と Docker の差分を定期的に解消します。
 type Reconciler struct {
 	store    Store
 	locker   *LockManager
 	docker   DockerLister
+	remover  ContainerRemover
 	interval time.Duration
 	logger   *zap.Logger
 }
 
 // NewReconciler は Reconciler を返します。
-func NewReconciler(store Store, locker *LockManager, docker DockerLister, interval time.Duration, logger *zap.Logger) *Reconciler {
+// remover が nil の場合、孤立コンテナの削除は行いません。
+func NewReconciler(store Store, locker *LockManager, docker DockerLister, remover ContainerRemover, interval time.Duration, logger *zap.Logger) *Reconciler {
 	return &Reconciler{
 		store:    store,
 		locker:   locker,
 		docker:   docker,
+		remover:  remover,
 		interval: interval,
 		logger:   logger,
 	}
@@ -113,10 +124,17 @@ func (r *Reconciler) Reconcile(ctx context.Context) error {
 		}
 	}
 
-	// Docker にあるが State にない → "orphan" で新規 Resource を追加
+	// Docker にあるが State にない → "orphan" で新規 Resource を追加し、コンテナを削除する
+	cleaned := 0
 	for _, c := range containers {
 		if _, known := knownContainerIDs[c.ID]; known {
 			continue
+		}
+		if cleaned >= maxOrphanCleanupPerReconcile {
+			r.logger.Warn("reconcile: orphan cleanup limit reached, deferring remaining",
+				zap.Int("limit", maxOrphanCleanupPerReconcile),
+			)
+			break
 		}
 
 		kind := c.Labels["cloudia.kind"]
@@ -159,6 +177,21 @@ func (r *Reconciler) Reconcile(ctx context.Context) error {
 				)
 			}
 		}()
+
+		// 孤立コンテナを削除する
+		if r.remover != nil {
+			if removeErr := r.remover.RemoveContainer(ctx, c.ID); removeErr != nil {
+				r.logger.Warn("reconcile: failed to remove orphan container",
+					zap.String("container_id", c.ID),
+					zap.Error(removeErr),
+				)
+			} else {
+				r.logger.Info("reconcile: removed orphan container",
+					zap.String("container_id", c.ID),
+				)
+			}
+		}
+		cleaned++
 	}
 
 	return nil

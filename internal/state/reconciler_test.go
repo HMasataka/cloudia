@@ -3,6 +3,7 @@ package state_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -22,10 +23,30 @@ func (m *mockDockerLister) ListManagedContainers(_ context.Context) ([]container
 	return m.containers, m.err
 }
 
+// mockContainerRemover は ContainerRemover のモック実装です。
+type mockContainerRemover struct {
+	removed []string
+	err     error
+}
+
+func (m *mockContainerRemover) RemoveContainer(_ context.Context, containerID string) error {
+	if m.err != nil {
+		return m.err
+	}
+	m.removed = append(m.removed, containerID)
+	return nil
+}
+
 func newTestReconciler(store state.Store, lister state.DockerLister) *state.Reconciler {
 	lm := state.NewLockManager(5 * time.Second)
 	logger := zap.NewNop()
-	return state.NewReconciler(store, lm, lister, 1*time.Hour, logger)
+	return state.NewReconciler(store, lm, lister, nil, 1*time.Hour, logger)
+}
+
+func newTestReconcilerWithRemover(store state.Store, lister state.DockerLister, remover state.ContainerRemover) *state.Reconciler {
+	lm := state.NewLockManager(5 * time.Second)
+	logger := zap.NewNop()
+	return state.NewReconciler(store, lm, lister, remover, 1*time.Hour, logger)
 }
 
 func TestReconciler_TerminatesStateResourceNotInDocker(t *testing.T) {
@@ -182,7 +203,7 @@ func TestReconciler_StartAndStop(t *testing.T) {
 	lm := state.NewLockManager(5 * time.Second)
 	logger := zap.NewNop()
 
-	rec := state.NewReconciler(store, lm, lister, 10*time.Millisecond, logger)
+	rec := state.NewReconciler(store, lm, lister, nil, 10*time.Millisecond, logger)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
@@ -193,8 +214,7 @@ func TestReconciler_StartAndStop(t *testing.T) {
 }
 
 func TestReconciler_NoDeletesOnlyStatusUpdate(t *testing.T) {
-	// Reconciler は Docker コンテナの削除を一切行わない
-	// terminated に変更するのみ
+	// remover=nil の場合、Reconciler はステータス変更のみ行う（Docker コンテナの削除なし）
 	store := state.NewMemoryStore()
 	ctx := context.Background()
 
@@ -216,5 +236,78 @@ func TestReconciler_NoDeletesOnlyStatusUpdate(t *testing.T) {
 	}
 	if got.Status != "terminated" {
 		t.Errorf("expected status=terminated, got %q", got.Status)
+	}
+}
+
+func TestReconciler_RemovesOrphanContainerWithRemover(t *testing.T) {
+	store := state.NewMemoryStore()
+	ctx := context.Background()
+
+	cID := "orphan-container-abc"
+	lister := &mockDockerLister{
+		containers: []container.Summary{
+			{
+				ID: cID,
+				Labels: map[string]string{
+					"cloudia.kind":     "aws:ec2:instance",
+					"cloudia.provider": "aws",
+					"cloudia.service":  "ec2",
+					"cloudia.region":   "us-east-1",
+				},
+			},
+		},
+	}
+	remover := &mockContainerRemover{}
+	rec := newTestReconcilerWithRemover(store, lister, remover)
+
+	if err := rec.Reconcile(ctx); err != nil {
+		t.Fatalf("Reconcile failed: %v", err)
+	}
+
+	// 孤立コンテナが削除されたことを確認
+	if len(remover.removed) != 1 || remover.removed[0] != cID {
+		t.Errorf("expected container %q to be removed, got %v", cID, remover.removed)
+	}
+
+	// State に orphan として追加されていることを確認
+	resourceID := cID[:12]
+	got, err := store.Get(ctx, "aws:ec2:instance", resourceID)
+	if err != nil {
+		t.Fatalf("Get orphan failed: %v", err)
+	}
+	if got.Status != "orphan" {
+		t.Errorf("expected status=orphan, got %q", got.Status)
+	}
+}
+
+func TestReconciler_OrphanCleanupLimit(t *testing.T) {
+	store := state.NewMemoryStore()
+	ctx := context.Background()
+
+	// 11 件の孤立コンテナを用意（上限 10 件）
+	containers := make([]container.Summary, 11)
+	for i := range containers {
+		containers[i] = container.Summary{
+			ID: fmt.Sprintf("orphan-container-%02d-extra", i),
+			Labels: map[string]string{
+				"cloudia.kind":     "aws:ec2:instance",
+				"cloudia.provider": "aws",
+				"cloudia.service":  "ec2",
+				"cloudia.region":   "us-east-1",
+			},
+		}
+	}
+
+	lister := &mockDockerLister{containers: containers}
+	remover := &mockContainerRemover{}
+	rec := newTestReconcilerWithRemover(store, lister, remover)
+
+	if err := rec.Reconcile(ctx); err != nil {
+		t.Fatalf("Reconcile failed: %v", err)
+	}
+
+	// 最大 10 件のみ削除されることを確認
+	if len(remover.removed) != 10 {
+		t.Errorf("expected 10 containers removed, got %d", len(remover.removed))
 	}
 }

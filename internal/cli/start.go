@@ -100,11 +100,11 @@ func runStart(cmd *cobra.Command, args []string) error {
 
 	dockerClient, err := docker.NewClient(cfg.Docker, logger)
 	if err != nil {
-		return fmt.Errorf("docker is not available: %w", err)
+		return fmt.Errorf("failed to create Docker client — is Docker installed? (%w)", err)
 	}
 
 	if err := dockerClient.Ping(ctx); err != nil {
-		return fmt.Errorf("docker is not available: %w", err)
+		return fmt.Errorf("Docker daemon is not reachable — please start Docker Desktop or the Docker daemon and try again (%w)", err)
 	}
 	defer dockerClient.Close()
 
@@ -128,6 +128,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create limiter: %w", err)
 	}
+	limiter.SetDiskChecker(dockerClient)
 	portManager := resource.NewPortManager(cfg.Ports)
 
 	registry := service.NewRegistry()
@@ -225,6 +226,13 @@ func runStart(cmd *cobra.Command, args []string) error {
 
 	sigCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	reconcileInterval := cfg.State.ReconciliationInterval
+	if reconcileInterval <= 0 {
+		reconcileInterval = 30 * time.Second
+	}
+	reconciler := state.NewReconciler(memStore, lockManager, dockerClient, dockerClient, reconcileInterval, logger)
+	reconciler.Start(sigCtx)
 
 	<-sigCtx.Done()
 
