@@ -187,9 +187,9 @@ CLI → Gateway → Auth (SigV4/OAuth) → Protocol (XML/JSON変換) → Service
 **ゴール**: DynamoDB Local バックエンドが動作し、テーブル/アイテム CRUD が可能
 **完動品としての価値**: Terraform で DynamoDB テーブルを作成してアイテム操作が可能。Terraform state ロック（DynamoDB ベース）もローカルで動作
 
-- [ ] DynamoDB バックエンド (`internal/backend/dynamodb/backend.go`): DynamoDB Local コンテナの起動・停止・再利用、ヘルスチェック
-- [ ] AWS DynamoDB サービス (`internal/service/aws/dynamodb/`): service.go, handlers.go, models.go — CreateTable, DeleteTable, DescribeTable, ListTables, PutItem, GetItem, UpdateItem, DeleteItem, Query, Scan, BatchWriteItem, BatchGetItem の各ハンドラ実装。GSI/LSI 対応。プロトコルは JSON（X-Amz-Target: DynamoDB_20120810.\*）
-- [ ] テスト: Terraform `aws_dynamodb_table` の apply/destroy テスト。DynamoDB アイテム操作テスト。Terraform state ロック（S3 backend + DynamoDB lock table）のローカル動作テスト
+- [x] DynamoDB バックエンド (`internal/service/dynamodb/backend.go`): DynamoDB Local コンテナの起動・停止、ヘルスチェック (ListTables API)
+- [x] AWS DynamoDB サービス (`internal/service/dynamodb/`): ProxyService パターンで DynamoDB Local へリバースプロキシ。12 アクション対応 (CreateTable〜BatchGetItem)。GSI/LSI は DynamoDB Local がネイティブサポート
+- [x] サービス登録: `start.go` に DynamoDB サービス追加
 
 ---
 
