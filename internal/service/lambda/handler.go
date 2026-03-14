@@ -77,8 +77,7 @@ func (s *LambdaService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "invocations":
 		// /2015-03-31/functions/{name}/invocations
 		if method == http.MethodPost {
-			// Group 3 で実装予定のスタブ
-			s.handleInvokeStub(w, r, functionName)
+			s.handleInvoke(w, r, functionName)
 		} else {
 			writeError(w, http.StatusMethodNotAllowed, "MethodNotAllowedException", "method not allowed")
 		}
@@ -88,8 +87,3 @@ func (s *LambdaService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleInvokeStub は Group 3 で実装される Invoke API のスタブです。
-func (s *LambdaService) handleInvokeStub(w http.ResponseWriter, _ *http.Request, functionName string) {
-	s.logger.Sugar().Infof("lambda: invoke stub called for %s (not yet implemented)", functionName)
-	writeError(w, http.StatusNotImplemented, "NotImplementedException", "Invoke is not yet implemented")
-}
