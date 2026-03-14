@@ -19,11 +19,18 @@ import (
 var dbNameRegexp = regexp.MustCompile(`^[a-zA-Z0-9_]*$`)
 
 // validateMasterUserPassword は MasterUserPassword のバリデーションを行います。
-// 8-41 文字必須です。
-func validateMasterUserPassword(password string) error {
+// MySQL: 8-41 文字、PostgreSQL: 8-128 文字必須です。
+func validateMasterUserPassword(password, engine string) error {
 	l := utf8.RuneCountInString(password)
-	if l < 8 || l > 41 {
-		return fmt.Errorf("MasterUserPassword must be between 8 and 41 characters")
+	switch engine {
+	case "postgres":
+		if l < 8 || l > 128 {
+			return fmt.Errorf("MasterUserPassword must be between 8 and 128 characters")
+		}
+	default: // mysql
+		if l < 8 || l > 41 {
+			return fmt.Errorf("MasterUserPassword must be between 8 and 41 characters")
+		}
 	}
 	return nil
 }
@@ -51,12 +58,21 @@ func (r *RDSService) createDBInstance(ctx context.Context, req service.Request) 
 			"The request must contain the parameter DBInstanceIdentifier.")
 	}
 
+	engine := req.Params["Engine"]
+	if engine == "" {
+		engine = "mysql"
+	}
+	if engine != "mysql" && engine != "postgres" {
+		return errorResponse(http.StatusBadRequest, "InvalidParameterValue",
+			fmt.Sprintf("Invalid DB engine: %s. Supported engines are mysql and postgres.", engine))
+	}
+
 	masterUserPassword := req.Params["MasterUserPassword"]
 	if masterUserPassword == "" {
 		return errorResponse(http.StatusBadRequest, "InvalidParameterValue",
 			"The parameter MasterUserPassword is required.")
 	}
-	if err := validateMasterUserPassword(masterUserPassword); err != nil {
+	if err := validateMasterUserPassword(masterUserPassword, engine); err != nil {
 		return errorResponse(http.StatusBadRequest, "InvalidParameterValue", err.Error())
 	}
 
@@ -69,14 +85,14 @@ func (r *RDSService) createDBInstance(ctx context.Context, req service.Request) 
 	if dbInstanceClass == "" {
 		dbInstanceClass = "db.t3.micro"
 	}
-
-	engine := req.Params["Engine"]
-	if engine == "" {
-		engine = "mysql"
-	}
 	engineVersion := req.Params["EngineVersion"]
 	if engineVersion == "" {
-		engineVersion = "8.0"
+		switch engine {
+		case "postgres":
+			engineVersion = "16"
+		default:
+			engineVersion = "8.0"
+		}
 	}
 
 	masterUsername := req.Params["MasterUsername"]
@@ -102,9 +118,13 @@ func (r *RDSService) createDBInstance(ctx context.Context, req service.Request) 
 			fmt.Sprintf("DB Instance already exists: %s", dbInstanceID))
 	}
 
-	host := r.rdb.Host()
+	backend, backendErr := r.getOrCreateBackend(ctx, engine)
+	if backendErr != nil {
+		return service.Response{StatusCode: http.StatusInternalServerError}, backendErr
+	}
+	host := backend.Host()
 	port := 3306
-	if p, err := strconv.Atoi(r.rdb.Port()); err == nil {
+	if p, err := strconv.Atoi(backend.Port()); err == nil {
 		port = p
 	}
 
@@ -239,7 +259,11 @@ func (r *RDSService) modifyDBInstance(ctx context.Context, req service.Request) 
 		resource.Spec["DBInstanceClass"] = v
 	}
 	if v := req.Params["MasterUserPassword"]; v != "" {
-		if err := validateMasterUserPassword(v); err != nil {
+		existingEngine, _ := resource.Spec["Engine"].(string)
+		if existingEngine == "" {
+			existingEngine = "mysql"
+		}
+		if err := validateMasterUserPassword(v, existingEngine); err != nil {
 			return errorResponse(http.StatusBadRequest, "InvalidParameterValue", err.Error())
 		}
 		resource.Spec["MasterUserPassword"] = v
