@@ -1,0 +1,34 @@
+server:
+  host: "127.0.0.1"
+  port: 4566
+  timeout: 30s
+
+limits:
+  max_containers: 20
+  default_cpu: "1"
+  default_memory: "512m"
+  storage_quota: "10g"
+
+docker:
+  api_version: "1.41"
+  network_name: "cloudia"
+  label_prefix: "cloudia"
+
+state:
+  backend: "memory"
+  file_path: "~/.cloudia/state.json"
+  reconciliation_interval: 30s
+
+cleanup:
+  ttl_enabled: false
+  default_ttl: 24h
+  orphan_check_interval: 5m
+
+logging:
+  level: "info"
+  format: "json"
+  access_log: true
+
+metrics:
+  enabled: false
+  port: 9090
