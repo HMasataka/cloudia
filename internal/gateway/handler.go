@@ -39,8 +39,10 @@ func NewServiceHandler(
 }
 
 // ServeHTTP はリクエストを処理します。
-// プロバイダ検出 -> 認証 -> プロトコル変換 -> サービス解決 -> ディスパッチ -> レスポンスエンコード
+// バーチャルホスト書き換え -> プロバイダ検出 -> 認証 -> プロトコル変換 -> サービス解決 -> ディスパッチ -> レスポンスエンコード
 func (h *ServiceHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	rewriteVirtualHostPath(r)
+
 	requestID, err := GenerateRequestID()
 	if err != nil {
 		http.Error(w, "failed to generate request id", http.StatusInternalServerError)
@@ -119,6 +121,12 @@ func (h *ServiceHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		codec.EncodeError(w, err, requestID)
+		return
+	}
+
+	if proxySvc, ok := svc.(service.ProxyService); ok {
+		w.Header().Set("X-Request-Id", requestID)
+		proxySvc.ServeHTTP(w, r)
 		return
 	}
 

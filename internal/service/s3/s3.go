@@ -50,7 +50,13 @@ func (s *S3Service) Provider() string {
 // Init initializes the MinIO backend and captures the Store dependency.
 func (s *S3Service) Init(ctx context.Context, deps service.ServiceDeps) error {
 	s.store = deps.Store
-	return s.minio.Init(ctx, s.cfg, deps)
+	if err := s.minio.Init(ctx, s.cfg, deps); err != nil {
+		return err
+	}
+	if deps.Registry != nil {
+		deps.Registry.SharedBackend("minio-url", s.minio.baseURL)
+	}
+	return nil
 }
 
 // HandleRequest returns ErrUnsupportedOperation; actual requests are served via ServeHTTP.
@@ -61,16 +67,43 @@ func (s *S3Service) HandleRequest(_ context.Context, _ service.Request) (service
 // SupportedActions returns the list of S3 actions supported by this service.
 func (s *S3Service) SupportedActions() []string {
 	return []string{
+		// Basic bucket operations
 		"CreateBucket",
 		"DeleteBucket",
 		"ListBuckets",
 		"HeadBucket",
+		// Object operations
 		"PutObject",
 		"GetObject",
 		"DeleteObject",
 		"ListObjectsV2",
 		"CopyObject",
 		"HeadObject",
+		// Multipart upload
+		"CreateMultipartUpload",
+		"UploadPart",
+		"CompleteMultipartUpload",
+		"AbortMultipartUpload",
+		"ListMultipartUploads",
+		"ListParts",
+		// Bucket policy
+		"PutBucketPolicy",
+		"GetBucketPolicy",
+		"DeleteBucketPolicy",
+		// Versioning
+		"PutBucketVersioning",
+		"GetBucketVersioning",
+		// ACL
+		"PutBucketAcl",
+		"GetBucketAcl",
+		// CORS
+		"PutBucketCors",
+		"GetBucketCors",
+		"DeleteBucketCors",
+		// Lifecycle
+		"PutBucketLifecycleConfiguration",
+		"GetBucketLifecycleConfiguration",
+		"DeleteBucketLifecycleConfiguration",
 	}
 }
 

@@ -79,9 +79,24 @@ func TestS3Service_SupportedActions(t *testing.T) {
 	actions := svc.SupportedActions()
 
 	expected := []string{
+		// Basic bucket operations
 		"CreateBucket", "DeleteBucket", "ListBuckets", "HeadBucket",
+		// Object operations
 		"PutObject", "GetObject", "DeleteObject", "ListObjectsV2",
 		"CopyObject", "HeadObject",
+		// Multipart upload
+		"CreateMultipartUpload", "UploadPart", "CompleteMultipartUpload",
+		"AbortMultipartUpload", "ListMultipartUploads", "ListParts",
+		// Bucket policy
+		"PutBucketPolicy", "GetBucketPolicy", "DeleteBucketPolicy",
+		// Versioning
+		"PutBucketVersioning", "GetBucketVersioning",
+		// ACL
+		"PutBucketAcl", "GetBucketAcl",
+		// CORS
+		"PutBucketCors", "GetBucketCors", "DeleteBucketCors",
+		// Lifecycle
+		"PutBucketLifecycleConfiguration", "GetBucketLifecycleConfiguration", "DeleteBucketLifecycleConfiguration",
 	}
 
 	if len(actions) != len(expected) {

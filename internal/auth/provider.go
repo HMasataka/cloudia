@@ -45,6 +45,7 @@ func DetectProvider(r *http.Request) (string, error) {
 
 var gcpPathPrefixes = []string{
 	"/storage/v1/",
+	"/upload/storage/v1/",
 	"/compute/v1/",
 	"/v1/projects/",
 }

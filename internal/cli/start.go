@@ -23,6 +23,7 @@ import (
 	gcpprotocol "github.com/HMasataka/cloudia/internal/protocol/gcp"
 	"github.com/HMasataka/cloudia/internal/resource"
 	"github.com/HMasataka/cloudia/internal/service"
+	gcssvc "github.com/HMasataka/cloudia/internal/service/gcs"
 	s3svc "github.com/HMasataka/cloudia/internal/service/s3"
 	"github.com/HMasataka/cloudia/internal/state"
 )
@@ -110,18 +111,23 @@ func runStart(cmd *cobra.Command, args []string) error {
 	}
 	portManager := resource.NewPortManager(cfg.Ports)
 
+	registry := service.NewRegistry()
+
 	deps := service.ServiceDeps{
 		Store:         memStore,
 		LockManager:   lockManager,
 		Limiter:       limiter,
 		PortAllocator: portManager,
 		DockerClient:  dockerClient,
+		Registry:      registry,
 	}
-
-	registry := service.NewRegistry()
 
 	if err := registry.Register(s3svc.NewS3Service(cfg.Auth.AWS, logger)); err != nil {
 		return fmt.Errorf("failed to register s3 service: %w", err)
+	}
+
+	if err := registry.Register(gcssvc.NewGCSService(cfg.Auth.AWS, logger)); err != nil {
+		return fmt.Errorf("failed to register gcs service: %w", err)
 	}
 
 	if err := registry.InitAll(ctx, deps); err != nil {

@@ -14,6 +14,7 @@ type servicePrefix struct {
 // pathPrefixes は longest prefix match に使用するプレフィックス一覧です。
 // 長いプレフィックスを先に配置することで longest match を実現します。
 var pathPrefixes = []servicePrefix{
+	{prefix: "/upload/storage/v1/", service: "storage"},
 	{prefix: "/storage/v1/", service: "storage"},
 	{prefix: "/compute/v1/", service: "compute"},
 	// /v1/projects/ 配下はパス詳細でサービスを判別する

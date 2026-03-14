@@ -71,6 +71,7 @@ type ServiceDeps struct {
 	Limiter       Limiter
 	PortAllocator PortAllocator
 	DockerClient  ContainerRunner
+	Registry      *Registry
 }
 
 // Service はクラウドサービスプロバイダが実装すべきインターフェースです。
