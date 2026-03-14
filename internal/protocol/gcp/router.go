@@ -25,6 +25,7 @@ var pathPrefixes = []servicePrefix{
 // 判別ロジック:
 //   - "/locations/" と "/instances" を両方含む → "memorystore"
 //   - "/clusters/" を含む                     → "gke"
+//   - "/topics" または "/subscriptions" を含む → "pubsub"
 //   - それ以外で "/instances" を含む           → "cloudsql"
 func resolveV1ProjectsService(rest string) (string, bool) {
 	switch {
@@ -32,6 +33,8 @@ func resolveV1ProjectsService(rest string) (string, bool) {
 		return "memorystore", true
 	case strings.Contains(rest, "/clusters/") || strings.HasSuffix(rest, "/clusters"):
 		return "gke", true
+	case strings.Contains(rest, "/topics") || strings.Contains(rest, "/subscriptions"):
+		return "pubsub", true
 	case strings.Contains(rest, "/instances"):
 		return "cloudsql", true
 	default:
