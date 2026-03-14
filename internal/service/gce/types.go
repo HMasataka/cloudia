@@ -5,9 +5,8 @@ const kindInstance = "gcp:compute:instance"
 
 // Instance status names.
 const (
-	statusRunning     = "RUNNING"
-	statusStopped     = "TERMINATED"
-	statusProvisioning = "PROVISIONING"
+	statusRunning = "RUNNING"
+	statusStopped = "TERMINATED"
 )
 
 // InsertInstanceRequest は GCP REST API の instances.insert リクエストボディです。

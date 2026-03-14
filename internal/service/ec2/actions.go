@@ -283,7 +283,7 @@ func (e *EC2Service) runInstances(ctx context.Context, req service.Request) (ser
 
 	// 各 SG ID の存在確認
 	for _, sgID := range securityGroupIDs {
-		if _, err := e.store.Get(ctx, kindSecurityGroup, sgID); err != nil {
+		if _, err := e.store.Get(ctx, "aws:ec2:security-group", sgID); err != nil {
 			if errors.Is(err, models.ErrNotFound) {
 				return errorResponse(http.StatusBadRequest, "InvalidGroup.NotFound",
 					fmt.Sprintf("The security group '%s' does not exist.", sgID))

@@ -8,7 +8,6 @@ const xmlNamespace = "http://ec2.amazonaws.com/doc/2016-11-15/"
 // Store kinds for EC2 resources.
 const kindInstance = "aws:ec2:instance"
 const kindKeyPair = "aws:ec2:key-pair"
-const kindSecurityGroup = "aws:ec2:security-group"
 
 // Instance state codes.
 const (

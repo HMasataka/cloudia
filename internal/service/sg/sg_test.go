@@ -233,4 +233,112 @@ func TestRevokeSecurityGroupIngress(t *testing.T) {
 	if !strings.Contains(string(revokeResp.Body), "<return>true</return>") {
 		t.Errorf("RevokeSecurityGroupIngress: expected return=true: %s", revokeResp.Body)
 	}
+
+	// ルールが実際に削除されていることを確認
+	descResp := handleRequest(t, svc, "DescribeSecurityGroups", map[string]string{
+		"GroupId.1": groupID,
+	})
+	body := string(descResp.Body)
+	if strings.Contains(body, ">443<") {
+		t.Errorf("RevokeSecurityGroupIngress: rule still present after revoke: %s", body)
+	}
+}
+
+// TestRevokeSecurityGroupIngress_RuleRemoved は Revoke 後にルールが削除され、他のルールが残ることを検証します。
+func TestRevokeSecurityGroupIngress_RuleRemoved(t *testing.T) {
+	svc, _ := newTestService(t)
+
+	createResp := handleRequest(t, svc, "CreateSecurityGroup", map[string]string{
+		"GroupName":   "revoke-partial-sg",
+		"Description": "Revoke partial test",
+	})
+	groupID := extractGroupId(t, string(createResp.Body))
+
+	// ルール1 (tcp/80) と ルール2 (tcp/443) を追加
+	handleRequest(t, svc, "AuthorizeSecurityGroupIngress", map[string]string{
+		"GroupId":                             groupID,
+		"IpPermissions.1.IpProtocol":         "tcp",
+		"IpPermissions.1.FromPort":           "80",
+		"IpPermissions.1.ToPort":             "80",
+		"IpPermissions.1.IpRanges.1.CidrIp": "0.0.0.0/0",
+	})
+	handleRequest(t, svc, "AuthorizeSecurityGroupIngress", map[string]string{
+		"GroupId":                             groupID,
+		"IpPermissions.1.IpProtocol":         "tcp",
+		"IpPermissions.1.FromPort":           "443",
+		"IpPermissions.1.ToPort":             "443",
+		"IpPermissions.1.IpRanges.1.CidrIp": "0.0.0.0/0",
+	})
+
+	// ルール1 (tcp/80) のみ削除
+	revokeResp := handleRequest(t, svc, "RevokeSecurityGroupIngress", map[string]string{
+		"GroupId":                             groupID,
+		"IpPermissions.1.IpProtocol":         "tcp",
+		"IpPermissions.1.FromPort":           "80",
+		"IpPermissions.1.ToPort":             "80",
+		"IpPermissions.1.IpRanges.1.CidrIp": "0.0.0.0/0",
+	})
+	if revokeResp.StatusCode != 200 {
+		t.Fatalf("RevokeSecurityGroupIngress: expected 200, got %d. body=%s", revokeResp.StatusCode, revokeResp.Body)
+	}
+
+	// tcp/80 が削除され、tcp/443 が残っていることを確認
+	descResp := handleRequest(t, svc, "DescribeSecurityGroups", map[string]string{
+		"GroupId.1": groupID,
+	})
+	body := string(descResp.Body)
+	if strings.Contains(body, ">80<") {
+		t.Errorf("RevokeSecurityGroupIngress: tcp/80 rule still present after revoke: %s", body)
+	}
+	if !strings.Contains(body, ">443<") {
+		t.Errorf("RevokeSecurityGroupIngress: tcp/443 rule missing after revoke of tcp/80: %s", body)
+	}
+}
+
+// TestRevokeSecurityGroupEgress_RuleRemoved は RevokeSecurityGroupEgress 後にルールが削除されることを検証します。
+func TestRevokeSecurityGroupEgress_RuleRemoved(t *testing.T) {
+	svc, _ := newTestService(t)
+
+	createResp := handleRequest(t, svc, "CreateSecurityGroup", map[string]string{
+		"GroupName":   "revoke-egress-sg",
+		"Description": "Revoke egress test",
+	})
+	groupID := extractGroupId(t, string(createResp.Body))
+
+	// カスタム egress ルール (tcp/8080) を追加
+	handleRequest(t, svc, "AuthorizeSecurityGroupEgress", map[string]string{
+		"GroupId":                             groupID,
+		"IpPermissions.1.IpProtocol":         "tcp",
+		"IpPermissions.1.FromPort":           "8080",
+		"IpPermissions.1.ToPort":             "8080",
+		"IpPermissions.1.IpRanges.1.CidrIp": "10.0.0.0/8",
+	})
+
+	// 追加されていることを確認
+	descBefore := handleRequest(t, svc, "DescribeSecurityGroups", map[string]string{
+		"GroupId.1": groupID,
+	})
+	if !strings.Contains(string(descBefore.Body), ">8080<") {
+		t.Fatalf("expected egress rule 8080 to be present: %s", descBefore.Body)
+	}
+
+	// egress ルールを削除
+	revokeResp := handleRequest(t, svc, "RevokeSecurityGroupEgress", map[string]string{
+		"GroupId":                             groupID,
+		"IpPermissions.1.IpProtocol":         "tcp",
+		"IpPermissions.1.FromPort":           "8080",
+		"IpPermissions.1.ToPort":             "8080",
+		"IpPermissions.1.IpRanges.1.CidrIp": "10.0.0.0/8",
+	})
+	if revokeResp.StatusCode != 200 {
+		t.Fatalf("RevokeSecurityGroupEgress: expected 200, got %d. body=%s", revokeResp.StatusCode, revokeResp.Body)
+	}
+
+	// 削除されていることを確認
+	descAfter := handleRequest(t, svc, "DescribeSecurityGroups", map[string]string{
+		"GroupId.1": groupID,
+	})
+	if strings.Contains(string(descAfter.Body), ">8080<") {
+		t.Errorf("RevokeSecurityGroupEgress: egress rule 8080 still present after revoke: %s", descAfter.Body)
+	}
 }

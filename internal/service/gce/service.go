@@ -139,7 +139,7 @@ func (g *GCEService) HandleRequest(ctx context.Context, req service.Request) (se
 // リソースパスは /compute/v1/ プレフィックスが除去された後の文字列です。
 func parseComputePath(resourcePath string) (project, zone, name, op string, err error) {
 	// パスは "projects/{p}/zones/{z}/instances" or "projects/{p}/zones/{z}/instances/{name}" or "projects/{p}/zones/{z}/instances/{name}/{op}"
-	parts := strings.SplitN(resourcePath, "/", -1)
+	parts := strings.Split(resourcePath, "/")
 	// parts[0]="projects", parts[1]={p}, parts[2]="zones", parts[3]={z}, parts[4]="instances", [parts[5]={name}], [parts[6]={op}]
 	if len(parts) < 5 {
 		return "", "", "", "", fmt.Errorf("invalid compute path: %q", resourcePath)

@@ -269,7 +269,7 @@ func (s *SGService) authorizeSecurityGroupIngress(ctx context.Context, req servi
 
 // revokeSecurityGroupIngress は RevokeSecurityGroupIngress アクションを処理します。
 func (s *SGService) revokeSecurityGroupIngress(ctx context.Context, req service.Request) (service.Response, error) {
-	return s.modifySecurityGroupRules(ctx, req, "IpPermissions")
+	return s.removeSecurityGroupRules(ctx, req, "IpPermissions")
 }
 
 // authorizeSecurityGroupEgress は AuthorizeSecurityGroupEgress アクションを処理します。
@@ -279,7 +279,7 @@ func (s *SGService) authorizeSecurityGroupEgress(ctx context.Context, req servic
 
 // revokeSecurityGroupEgress は RevokeSecurityGroupEgress アクションを処理します。
 func (s *SGService) revokeSecurityGroupEgress(ctx context.Context, req service.Request) (service.Response, error) {
-	return s.modifySecurityGroupRules(ctx, req, "IpPermissionsEgress")
+	return s.removeSecurityGroupRules(ctx, req, "IpPermissionsEgress")
 }
 
 // modifySecurityGroupRules は指定されたルールフィールドにパーミッションを追加します。
@@ -315,14 +315,97 @@ func (s *SGService) modifySecurityGroupRules(ctx context.Context, req service.Re
 	switch req.Action {
 	case "AuthorizeSecurityGroupIngress":
 		xmlResp = AuthorizeSecurityGroupIngressResponse{RequestId: "cloudia-sg", Return: true}
-	case "RevokeSecurityGroupIngress":
-		xmlResp = RevokeSecurityGroupIngressResponse{RequestId: "cloudia-sg", Return: true}
 	case "AuthorizeSecurityGroupEgress":
 		xmlResp = AuthorizeSecurityGroupEgressResponse{RequestId: "cloudia-sg", Return: true}
+	default:
+		xmlResp = AuthorizeSecurityGroupIngressResponse{RequestId: "cloudia-sg", Return: true}
+	}
+	return awsprot.MarshalXMLResponse(http.StatusOK, xmlResp, xmlNamespace)
+}
+
+// ipPermissionMatches は2つのパーミッションが一致するかを判定します。
+// プロトコル、FromPort、ToPort、IpRanges の内容が一致する場合に true を返します。
+func ipPermissionMatches(existing map[string]interface{}, candidate map[string]interface{}) bool {
+	if existing["IpProtocol"] != candidate["IpProtocol"] {
+		return false
+	}
+	if existing["FromPort"] != candidate["FromPort"] {
+		return false
+	}
+	if existing["ToPort"] != candidate["ToPort"] {
+		return false
+	}
+	existingRanges, _ := existing["IpRanges"].([]string)
+	candidateRanges, _ := candidate["IpRanges"].([]string)
+	if len(existingRanges) != len(candidateRanges) {
+		return false
+	}
+	rangeSet := make(map[string]struct{}, len(existingRanges))
+	for _, r := range existingRanges {
+		rangeSet[r] = struct{}{}
+	}
+	for _, r := range candidateRanges {
+		if _, ok := rangeSet[r]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// removeSecurityGroupRules は指定されたルールフィールドからパーミッションを削除します。
+func (s *SGService) removeSecurityGroupRules(ctx context.Context, req service.Request, field string) (service.Response, error) {
+	groupID := req.Params["GroupId"]
+	if groupID == "" {
+		return errorResponse(http.StatusBadRequest, "MissingParameter",
+			"The request must contain the parameter GroupId.")
+	}
+
+	r, err := s.store.Get(ctx, kindSecurityGroup, groupID)
+	if err != nil {
+		if errors.Is(err, models.ErrNotFound) {
+			return errorResponse(http.StatusBadRequest, "InvalidGroup.NotFound",
+				fmt.Sprintf("The security group '%s' does not exist.", groupID))
+		}
+		return service.Response{StatusCode: http.StatusInternalServerError}, err
+	}
+
+	toRevoke := parseIpPermissions(req.Params)
+	existing, _ := r.Spec[field].([]interface{})
+
+	filtered := make([]interface{}, 0, len(existing))
+	for _, e := range existing {
+		em, ok := e.(map[string]interface{})
+		if !ok {
+			filtered = append(filtered, e)
+			continue
+		}
+		matched := false
+		for _, candidate := range toRevoke {
+			if ipPermissionMatches(em, candidate) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			filtered = append(filtered, e)
+		}
+	}
+
+	r.Spec[field] = filtered
+	r.UpdatedAt = time.Now().UTC()
+
+	if err := s.store.Put(ctx, r); err != nil {
+		return service.Response{StatusCode: http.StatusInternalServerError}, err
+	}
+
+	var xmlResp interface{}
+	switch req.Action {
+	case "RevokeSecurityGroupIngress":
+		xmlResp = RevokeSecurityGroupIngressResponse{RequestId: "cloudia-sg", Return: true}
 	case "RevokeSecurityGroupEgress":
 		xmlResp = RevokeSecurityGroupEgressResponse{RequestId: "cloudia-sg", Return: true}
 	default:
-		xmlResp = AuthorizeSecurityGroupIngressResponse{RequestId: "cloudia-sg", Return: true}
+		xmlResp = RevokeSecurityGroupIngressResponse{RequestId: "cloudia-sg", Return: true}
 	}
 	return awsprot.MarshalXMLResponse(http.StatusOK, xmlResp, xmlNamespace)
 }

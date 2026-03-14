@@ -168,7 +168,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 	serviceHandler := gateway.NewServiceHandler(verifiers, codecs, registry, logger)
 	adminHandler := admin.NewHandler(dockerClient, logger)
 	router := gateway.NewRouter(adminHandler, serviceHandler, logger, cfg.Server.Timeout)
-	server := gateway.NewServer(cfg.Server, cfg.Endpoints, router, logger)
+	server := gateway.NewServerWithStore(cfg.Server, cfg.Endpoints, router, memStore, logger)
 
 	if err := server.Start(); err != nil {
 		return fmt.Errorf("failed to start server: %w", err)

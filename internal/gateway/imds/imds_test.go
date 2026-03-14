@@ -14,7 +14,9 @@ import (
 	"go.uber.org/zap"
 )
 
-const testClientIP = "10.0.1.5"
+// testClientIP はテスト用クライアントIP（ローカルホスト）。
+// RemoteAddr のみを使用するため、127.0.0.1 を使用します。
+const testClientIP = "127.0.0.1"
 
 // newTestServer はテスト用IMDSサーバーを起動し、ベースURLとクリーンアップ関数を返します。
 func newTestServer(t *testing.T, store state.Store) string {
@@ -57,15 +59,13 @@ func newStoreWithInstance(t *testing.T) state.Store {
 	return store
 }
 
-// doRequest はクライアントIPをX-Forwarded-Forで偽装してリクエストを送ります。
+// doRequest はリクエストを送ります。RemoteAddr のみを使用するため X-Forwarded-For は設定しません。
 func doRequest(t *testing.T, method, url string, headers map[string]string) *http.Response {
 	t.Helper()
 	req, err := http.NewRequestWithContext(context.Background(), method, url, nil)
 	if err != nil {
 		t.Fatalf("http.NewRequest failed: %v", err)
 	}
-	// クライアントIPをX-Forwarded-Forで偽装
-	req.Header.Set("X-Forwarded-For", testClientIP)
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}

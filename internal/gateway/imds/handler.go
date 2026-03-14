@@ -59,10 +59,14 @@ func (h *Handler) handleTokenPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	const maxTTLSec = 21600 // AWS 仕様準拠の最大値（6時間）
 	ttlSec, err := strconv.Atoi(ttlStr)
 	if err != nil || ttlSec <= 0 {
 		http.Error(w, "invalid X-aws-ec2-metadata-token-ttl-seconds header", http.StatusBadRequest)
 		return
+	}
+	if ttlSec > maxTTLSec {
+		ttlSec = maxTTLSec
 	}
 
 	token, err := h.tokenStore.Generate(time.Duration(ttlSec) * time.Second)
@@ -159,11 +163,8 @@ func (h *Handler) findInstanceByIP(ctx context.Context, clientIP string) (*model
 }
 
 // extractClientIP はリクエストからクライアントIPを抽出します。
+// RemoteAddr のみを使用し、X-Forwarded-For ヘッダーは信頼しません。
 func extractClientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		parts := strings.SplitN(xff, ",", 2)
-		return strings.TrimSpace(parts[0])
-	}
 	ip, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr
