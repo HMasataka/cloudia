@@ -63,6 +63,10 @@ func (s *stubContainerRunner) InspectContainer(_ context.Context, _ string) (doc
 	return docker.ContainerInfo{State: "running", IPAddress: "172.17.0.2"}, nil
 }
 
+func (s *stubContainerRunner) ExecInContainer(_ context.Context, _ string, _ []string) ([]byte, error) {
+	return nil, nil
+}
+
 // stubPortAllocator はポート割り当てをスタブ化します。
 type stubPortAllocator struct {
 	allocated int

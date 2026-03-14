@@ -72,6 +72,10 @@ func (s *stubContainerRunner) InspectContainer(_ context.Context, _ string) (doc
 	return docker.ContainerInfo{}, nil
 }
 
+func (s *stubContainerRunner) ExecInContainer(_ context.Context, _ string, _ []string) ([]byte, error) {
+	return nil, nil
+}
+
 // --- S3Service identity tests ---
 
 func TestS3Service_Name(t *testing.T) {

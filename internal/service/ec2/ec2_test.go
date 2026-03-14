@@ -47,6 +47,10 @@ func (s *stubContainerRunner) InspectContainer(_ context.Context, _ string) (doc
 	return docker.ContainerInfo{State: "running", IPAddress: "172.17.0.2"}, nil
 }
 
+func (s *stubContainerRunner) ExecInContainer(_ context.Context, _ string, _ []string) ([]byte, error) {
+	return nil, nil
+}
+
 func newTestEC2Service(t *testing.T) (*ec2.EC2Service, *state.MemoryStore, *stubContainerRunner) {
 	t.Helper()
 	store := state.NewMemoryStore()

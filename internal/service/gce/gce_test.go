@@ -43,6 +43,10 @@ func (s *stubContainerRunner) InspectContainer(_ context.Context, _ string) (doc
 	return docker.ContainerInfo{State: "running", IPAddress: "10.128.0.2"}, nil
 }
 
+func (s *stubContainerRunner) ExecInContainer(_ context.Context, _ string, _ []string) ([]byte, error) {
+	return nil, nil
+}
+
 func newTestGCEService(t *testing.T) (*gce.GCEService, *state.MemoryStore) {
 	t.Helper()
 	store := state.NewMemoryStore()

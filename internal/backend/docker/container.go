@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -193,4 +195,29 @@ func (c *Client) FindContainerByServiceLabel(ctx context.Context, serviceValue s
 		return nil, nil
 	}
 	return &containers[0], nil
+}
+
+// ExecInContainer runs cmd inside the specified container and returns the combined stdout output.
+func (c *Client) ExecInContainer(ctx context.Context, containerID string, cmd []string) ([]byte, error) {
+	execResp, err := c.cli.ContainerExecCreate(ctx, containerID, container.ExecOptions{
+		AttachStdout: true,
+		AttachStderr: true,
+		Cmd:          cmd,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("exec create: %w", err)
+	}
+
+	attachResp, err := c.cli.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("exec attach: %w", err)
+	}
+	defer attachResp.Close()
+
+	var stdout, stderr bytes.Buffer
+	if _, err := stdcopy.StdCopy(&stdout, &stderr, attachResp.Reader); err != nil {
+		return nil, fmt.Errorf("exec read output: %w", err)
+	}
+
+	return stdout.Bytes(), nil
 }
