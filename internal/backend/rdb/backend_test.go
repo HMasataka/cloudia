@@ -23,6 +23,8 @@ func (e *mockEngine) Image() string { return e.image }
 
 func (e *mockEngine) DefaultPort() string { return e.defaultPort }
 
+func (e *mockEngine) ContainerName() string { return "cloudia-mock" }
+
 func (e *mockEngine) Env(rootPassword string) []string {
 	return []string{e.envPrefix + "_PASSWORD=" + rootPassword}
 }

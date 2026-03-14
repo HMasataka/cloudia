@@ -23,6 +23,11 @@ func (e *MySQLEngine) DefaultPort() string {
 	return "3306"
 }
 
+// ContainerName returns the Docker container name for MySQL.
+func (e *MySQLEngine) ContainerName() string {
+	return "cloudia-mysql"
+}
+
 // Env returns the environment variables required to initialise MySQL.
 func (e *MySQLEngine) Env(rootPassword string) []string {
 	return []string{

@@ -10,6 +10,9 @@ type Engine interface {
 	// DefaultPort returns the default port the engine listens on inside the container.
 	DefaultPort() string
 
+	// ContainerName returns the name to assign to the Docker container.
+	ContainerName() string
+
 	// Env returns the environment variables to set on the container.
 	Env(rootPassword string) []string
 
