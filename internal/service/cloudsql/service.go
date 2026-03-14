@@ -14,18 +14,20 @@ import (
 )
 
 // CloudSQLService は GCP Cloud SQL サービスのエミュレーションを行います。
-// RDS が管理する MySQL コンテナをバックエンドとして使用します。
+// RDS が管理する MySQL/PostgreSQL コンテナをバックエンドとして使用します。
 type CloudSQLService struct {
-	store     service.Store
-	logger    *zap.Logger
-	mysqlHost string
-	mysqlPort string
+	store   service.Store
+	logger  *zap.Logger
+	dbHosts map[string]string
+	dbPorts map[string]string
 }
 
 // NewCloudSQLService は新しい CloudSQLService を返します。
 func NewCloudSQLService(logger *zap.Logger) *CloudSQLService {
 	return &CloudSQLService{
-		logger: logger,
+		logger:  logger,
+		dbHosts: make(map[string]string),
+		dbPorts: make(map[string]string),
 	}
 }
 
@@ -39,7 +41,8 @@ func (c *CloudSQLService) Provider() string {
 	return "gcp"
 }
 
-// Init はサービスを初期化します。SharedBackend から MySQL の接続情報を取得します。
+// Init はサービスを初期化します。SharedBackend から MySQL/PostgreSQL の接続情報を取得します。
+// postgres バックエンドが未登録（遅延起動のため）でもエラーにしません。
 func (c *CloudSQLService) Init(_ context.Context, deps service.ServiceDeps) error {
 	c.store = deps.Store
 
@@ -47,28 +50,56 @@ func (c *CloudSQLService) Init(_ context.Context, deps service.ServiceDeps) erro
 		return fmt.Errorf("cloudsql: registry is nil; RDS service must be registered before Cloud SQL")
 	}
 
-	rawHost := deps.Registry.SharedBackend("mysql-host")
-	if rawHost == nil {
-		return fmt.Errorf("cloudsql: shared backend \"mysql-host\" not found; RDS service must be initialized before Cloud SQL")
+	// MySQL バックエンドの接続情報を取得（必須）。
+	// 新キー rdb-mysql-host を優先し、旧キー mysql-host にフォールバックする（後方互換）。
+	mysqlHost, mysqlPort, err := c.resolveBackendAddr(deps.Registry, "rdb-mysql-host", "rdb-mysql-port", "mysql-host", "mysql-port")
+	if err != nil {
+		return fmt.Errorf("cloudsql: mysql backend: %w", err)
 	}
-	host, ok := rawHost.(string)
-	if !ok || host == "" {
-		return fmt.Errorf("cloudsql: shared backend \"mysql-host\" is not a valid string")
-	}
+	c.dbHosts["mysql"] = mysqlHost
+	c.dbPorts["mysql"] = mysqlPort
 
-	rawPort := deps.Registry.SharedBackend("mysql-port")
-	if rawPort == nil {
-		return fmt.Errorf("cloudsql: shared backend \"mysql-port\" not found; RDS service must be initialized before Cloud SQL")
+	// PostgreSQL バックエンドの接続情報を取得（任意: 遅延起動のため未登録でも許容）。
+	pgHost := sharedBackendString(deps.Registry, "rdb-postgres-host")
+	pgPort := sharedBackendString(deps.Registry, "rdb-postgres-port")
+	if pgHost != "" && pgPort != "" {
+		c.dbHosts["postgres"] = pgHost
+		c.dbPorts["postgres"] = pgPort
 	}
-	port, ok := rawPort.(string)
-	if !ok || port == "" {
-		return fmt.Errorf("cloudsql: shared backend \"mysql-port\" is not a valid string")
-	}
-
-	c.mysqlHost = host
-	c.mysqlPort = port
 
 	return nil
+}
+
+// resolveBackendAddr は SharedBackend から host/port を取得します。
+// newHostKey/newPortKey を優先し、フォールバックとして oldHostKey/oldPortKey も試みます。
+func (c *CloudSQLService) resolveBackendAddr(registry *service.Registry, newHostKey, newPortKey, oldHostKey, oldPortKey string) (host, port string, err error) {
+	host = sharedBackendString(registry, newHostKey)
+	if host == "" {
+		host = sharedBackendString(registry, oldHostKey)
+	}
+	if host == "" {
+		return "", "", fmt.Errorf("shared backend %q (or %q) not found; RDS service must be initialized before Cloud SQL", newHostKey, oldHostKey)
+	}
+
+	port = sharedBackendString(registry, newPortKey)
+	if port == "" {
+		port = sharedBackendString(registry, oldPortKey)
+	}
+	if port == "" {
+		return "", "", fmt.Errorf("shared backend %q (or %q) not found; RDS service must be initialized before Cloud SQL", newPortKey, oldPortKey)
+	}
+
+	return host, port, nil
+}
+
+// sharedBackendString は Registry から文字列値を取得します。未登録または非文字列の場合は空文字を返します。
+func sharedBackendString(registry *service.Registry, key string) string {
+	raw := registry.SharedBackend(key)
+	if raw == nil {
+		return ""
+	}
+	s, _ := raw.(string)
+	return s
 }
 
 // SupportedActions はこのサービスがサポートするアクション名の一覧を返します。
@@ -77,18 +108,25 @@ func (c *CloudSQLService) SupportedActions() []string {
 	return []string{}
 }
 
-// Health はサービスのヘルスステータスを返します。MySQL への TCP 接続で確認します。
+// Health はサービスのヘルスステータスを返します。登録済みの全バックエンドへの TCP 接続で確認します。
+// いずれかのバックエンドへの接続が失敗した場合は unhealthy を返します。
 func (c *CloudSQLService) Health(ctx context.Context) service.HealthStatus {
-	if c.mysqlHost == "" || c.mysqlPort == "" {
+	if len(c.dbHosts) == 0 {
 		return service.HealthStatus{Healthy: false, Message: "not initialized"}
 	}
 
-	addr := net.JoinHostPort(c.mysqlHost, c.mysqlPort)
-	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", addr)
-	if err != nil {
-		return service.HealthStatus{Healthy: false, Message: err.Error()}
+	for engine, host := range c.dbHosts {
+		port, ok := c.dbPorts[engine]
+		if !ok || host == "" || port == "" {
+			continue
+		}
+		addr := net.JoinHostPort(host, port)
+		conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", addr)
+		if err != nil {
+			return service.HealthStatus{Healthy: false, Message: fmt.Sprintf("engine %s: %s", engine, err.Error())}
+		}
+		conn.Close()
 	}
-	conn.Close()
 
 	return service.HealthStatus{Healthy: true, Message: "ok"}
 }

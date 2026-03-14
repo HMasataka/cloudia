@@ -83,11 +83,32 @@ func (c *CloudSQLService) insertInstance(ctx context.Context, req service.Reques
 		dataDiskType = "PD_SSD"
 	}
 
-	port := 3306
-	if c.mysqlPort != "" {
-		if p, err := strconv.Atoi(c.mysqlPort); err == nil {
-			port = p
-		}
+	// databaseVersion のプレフィックスからエンジン種別を判定する。
+	var dbEngine string
+	var defaultPort int
+	switch {
+	case strings.HasPrefix(databaseVersion, "MYSQL_"):
+		dbEngine = "mysql"
+		defaultPort = 3306
+	case strings.HasPrefix(databaseVersion, "POSTGRES_"):
+		dbEngine = "postgres"
+		defaultPort = 5432
+	default:
+		return cloudsqlErrorResponse(http.StatusBadRequest,
+			fmt.Sprintf("unsupported databaseVersion prefix: %q; only MYSQL_ and POSTGRES_ are supported", databaseVersion))
+	}
+
+	// 対応するバックエンドの host/port を取得する。
+	backendHost := c.dbHosts[dbEngine]
+	backendPort := c.dbPorts[dbEngine]
+	if backendHost == "" || backendPort == "" {
+		return cloudsqlErrorResponse(http.StatusBadRequest,
+			fmt.Sprintf("backend for %q is not available; please create a %s DB instance in RDS first to start the backend", databaseVersion, dbEngine))
+	}
+
+	port := defaultPort
+	if p, err := strconv.Atoi(backendPort); err == nil {
+		port = p
 	}
 
 	now := time.Now().UTC()
@@ -110,7 +131,7 @@ func (c *CloudSQLService) insertInstance(ctx context.Context, req service.Reques
 			"dataDiskSizeGb":   dataDiskSizeGb,
 			"dataDiskType":     dataDiskType,
 			"activationPolicy": activationPolicy,
-			"ipAddress":        c.mysqlHost,
+			"ipAddress":        backendHost,
 			"port":             port,
 			"createTime":       now.Format(time.RFC3339),
 		},

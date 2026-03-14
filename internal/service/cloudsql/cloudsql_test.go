@@ -13,15 +13,19 @@ import (
 )
 
 // newTestCloudSQLService は Registry/MySQL 依存なしでサービスを構築します。
-// store を直接注入し、mysqlHost/mysqlPort はダミー値を使います。
+// store を直接注入し、dbHosts/dbPorts はダミー値を使います。
 func newTestCloudSQLService(t *testing.T) (*CloudSQLService, *state.MemoryStore) {
 	t.Helper()
 	store := state.NewMemoryStore()
 	svc := &CloudSQLService{
-		store:     store,
-		logger:    zap.NewNop(),
-		mysqlHost: "localhost",
-		mysqlPort: "3306",
+		store:  store,
+		logger: zap.NewNop(),
+		dbHosts: map[string]string{
+			"mysql": "localhost",
+		},
+		dbPorts: map[string]string{
+			"mysql": "3306",
+		},
 	}
 	return svc, store
 }
