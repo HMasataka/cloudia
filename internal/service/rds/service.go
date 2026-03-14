@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 
 	"go.uber.org/zap"
 
@@ -14,20 +15,22 @@ import (
 )
 
 // RDSService は AWS RDS サービスのエミュレーションを行います。
-// RDBBackend (MySQLEngine) を使用して MySQL コンテナを管理します。
+// 複数の RDBBackend を管理し、エンジン別に遅延起動します。
 type RDSService struct {
-	rdb    *rdb.RDBBackend
-	store  service.Store
-	cfg    config.AWSAuthConfig
-	logger *zap.Logger
+	mu       sync.Mutex
+	backends map[string]*rdb.RDBBackend
+	deps     service.ServiceDeps
+	store    service.Store
+	cfg      config.AWSAuthConfig
+	logger   *zap.Logger
 }
 
 // NewRDSService は新しい RDSService を返します。
 func NewRDSService(cfg config.AWSAuthConfig, logger *zap.Logger) *RDSService {
 	return &RDSService{
-		rdb:    rdb.NewRDBBackend(&rdb.MySQLEngine{}, logger),
-		cfg:    cfg,
-		logger: logger,
+		backends: make(map[string]*rdb.RDBBackend),
+		cfg:      cfg,
+		logger:   logger,
 	}
 }
 
@@ -41,21 +44,61 @@ func (r *RDSService) Provider() string {
 	return "aws"
 }
 
-// Init はサービスを初期化します。RDBBackend を起動し SharedBackend に登録します。
+// Init はサービスを初期化します。MySQL バックエンドを起動し SharedBackend に登録します。
 func (r *RDSService) Init(ctx context.Context, deps service.ServiceDeps) error {
 	r.store = deps.Store
+	r.deps = deps
 
-	if err := r.rdb.Init(ctx, deps); err != nil {
-		return fmt.Errorf("rds: init rdb backend: %w", err)
+	mysqlBackend := rdb.NewRDBBackend(&rdb.MySQLEngine{}, r.logger)
+	if err := mysqlBackend.Init(ctx, deps); err != nil {
+		return fmt.Errorf("rds: init mysql backend: %w", err)
 	}
 
+	r.mu.Lock()
+	r.backends["mysql"] = mysqlBackend
+	r.mu.Unlock()
+
 	if deps.Registry != nil {
-		deps.Registry.SharedBackend("mysql-host", r.rdb.Host())
-		deps.Registry.SharedBackend("mysql-port", r.rdb.Port())
-		deps.Registry.SharedBackend("mysql-password", r.rdb.RootPassword())
+		deps.Registry.SharedBackend("rdb-mysql-host", mysqlBackend.Host())
+		deps.Registry.SharedBackend("rdb-mysql-port", mysqlBackend.Port())
+		deps.Registry.SharedBackend("rdb-mysql-password", mysqlBackend.RootPassword())
+		// 後方互換のため旧キーでも二重登録する
+		deps.Registry.SharedBackend("mysql-host", mysqlBackend.Host())
+		deps.Registry.SharedBackend("mysql-port", mysqlBackend.Port())
+		deps.Registry.SharedBackend("mysql-password", mysqlBackend.RootPassword())
 	}
 
 	return nil
+}
+
+// getOrCreateBackend は指定エンジンのバックエンドを返します。
+// 未起動の場合は遅延起動します。
+func (r *RDSService) getOrCreateBackend(ctx context.Context, engine string) (*rdb.RDBBackend, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if b, ok := r.backends[engine]; ok {
+		return b, nil
+	}
+
+	var b *rdb.RDBBackend
+	switch engine {
+	case "postgres":
+		b = rdb.NewRDBBackend(&rdb.PostgreSQLEngine{}, r.logger)
+		if err := b.Init(ctx, r.deps); err != nil {
+			return nil, fmt.Errorf("rds: init postgres backend: %w", err)
+		}
+		if r.deps.Registry != nil {
+			r.deps.Registry.SharedBackend("rdb-postgres-host", b.Host())
+			r.deps.Registry.SharedBackend("rdb-postgres-port", b.Port())
+			r.deps.Registry.SharedBackend("rdb-postgres-password", b.RootPassword())
+		}
+	default:
+		return nil, fmt.Errorf("rds: unsupported engine: %s", engine)
+	}
+
+	r.backends[engine] = b
+	return b, nil
 }
 
 // HandleRequest はアクションに応じてリクエストを処理します。
@@ -94,14 +137,43 @@ func (r *RDSService) SupportedActions() []string {
 	}
 }
 
-// Health はサービスのヘルスステータスを返します。
+// Health はサービスのヘルスステータスを返します。全バックエンドの健全性を集約します。
 func (r *RDSService) Health(ctx context.Context) service.HealthStatus {
-	return r.rdb.Health(ctx)
+	r.mu.Lock()
+	backends := make(map[string]*rdb.RDBBackend, len(r.backends))
+	for k, v := range r.backends {
+		backends[k] = v
+	}
+	r.mu.Unlock()
+
+	for engine, b := range backends {
+		status := b.Health(ctx)
+		if !status.Healthy {
+			return service.HealthStatus{
+				Healthy: false,
+				Message: fmt.Sprintf("engine %s: %s", engine, status.Message),
+			}
+		}
+	}
+	return service.HealthStatus{Healthy: true, Message: "ok"}
 }
 
-// Shutdown は RDBBackend (MySQL コンテナ) を停止します。
+// Shutdown は全バックエンドのコンテナを停止します。
 func (r *RDSService) Shutdown(ctx context.Context) error {
-	return r.rdb.Shutdown(ctx)
+	r.mu.Lock()
+	backends := make(map[string]*rdb.RDBBackend, len(r.backends))
+	for k, v := range r.backends {
+		backends[k] = v
+	}
+	r.mu.Unlock()
+
+	var firstErr error
+	for engine, b := range backends {
+		if err := b.Shutdown(ctx); err != nil && firstErr == nil {
+			firstErr = fmt.Errorf("rds: shutdown %s backend: %w", engine, err)
+		}
+	}
+	return firstErr
 }
 
 // errorResponse は AWS 互換の XML エラーレスポンスを返します。
@@ -145,7 +217,11 @@ func dbInstanceMemberFromSpec(id string, spec map[string]interface{}) DBInstance
 	}
 
 	if endpointPort == 0 {
-		endpointPort = 3306
+		if engine == "postgres" {
+			endpointPort = 5432
+		} else {
+			endpointPort = 3306
+		}
 	}
 
 	return DBInstanceMember{

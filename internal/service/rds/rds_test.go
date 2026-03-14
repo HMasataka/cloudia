@@ -13,12 +13,15 @@ import (
 )
 
 // newTestRDSService は Docker/MySQL 依存なしでサービスを構築します。
-// rdb.RDBBackend は空のまま（Init を呼ばない）で store を直接注入します。
+// RDBBackend は空のまま（Init を呼ばない）で store を直接注入します。
 func newTestRDSService(t *testing.T) (*RDSService, *state.MemoryStore) {
 	t.Helper()
 	store := state.NewMemoryStore()
+	mysqlBackend := rdb.NewRDBBackend(&rdb.MySQLEngine{}, zap.NewNop())
 	svc := &RDSService{
-		rdb:    rdb.NewRDBBackend(&rdb.MySQLEngine{}, zap.NewNop()),
+		backends: map[string]*rdb.RDBBackend{
+			"mysql": mysqlBackend,
+		},
 		store:  store,
 		cfg:    config.AWSAuthConfig{},
 		logger: zap.NewNop(),
