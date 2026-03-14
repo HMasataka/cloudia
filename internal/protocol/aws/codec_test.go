@@ -54,16 +54,26 @@ func TestAWSCodecDecodeRequest_Query(t *testing.T) {
 	}
 }
 
-func TestAWSCodecDecodeRequest_Unsupported(t *testing.T) {
+func TestAWSCodecDecodeRequest_RESTJSON(t *testing.T) {
 	t.Parallel()
 
 	codec := &AWSCodec{}
-	req := httptest.NewRequest(http.MethodPost, "/", nil)
+	body := `{"name":"test-cluster"}`
+	req := httptest.NewRequest(http.MethodPost, "/clusters", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 
-	_, err := codec.DecodeRequest(req)
-	if err == nil {
-		t.Fatal("expected error for unsupported content type, got nil")
+	got, err := codec.DecodeRequest(req)
+	if err != nil {
+		t.Fatalf("DecodeRequest() error = %v", err)
+	}
+	if got.Provider != "aws" {
+		t.Errorf("Provider = %q, want %q", got.Provider, "aws")
+	}
+	if got.Action != "clusters" {
+		t.Errorf("Action = %q, want %q", got.Action, "clusters")
+	}
+	if got.Method != http.MethodPost {
+		t.Errorf("Method = %q, want %q", got.Method, http.MethodPost)
 	}
 }
 

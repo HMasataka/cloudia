@@ -2,7 +2,6 @@ package aws
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -13,15 +12,17 @@ import (
 type AWSCodec struct{}
 
 // DecodeRequest は HTTP リクエストを service.Request に変換します。
-// X-Amz-Target ヘッダーがあれば JSON プロトコル、Content-Type が
-// application/x-www-form-urlencoded であれば Query プロトコルとして処理します。
+// 1. X-Amz-Target ヘッダーがあれば JSON Target プロトコルとして処理します。
+// 2. Content-Type が application/x-www-form-urlencoded または Query パラメータに Action があれば
+//    Query プロトコルとして処理します。
+// 3. それ以外は REST JSON プロトコル (フォールバック) として処理します。
 func (c *AWSCodec) DecodeRequest(r *http.Request) (service.Request, error) {
 	if r.Header.Get("X-Amz-Target") != "" {
 		return DecodeJSONRequest(r)
 	}
 
 	ct := r.Header.Get("Content-Type")
-	if strings.HasPrefix(ct, "application/x-www-form-urlencoded") {
+	if strings.HasPrefix(ct, "application/x-www-form-urlencoded") || r.URL.Query().Get("Action") != "" {
 		req, err := DecodeQueryRequest(r)
 		if err != nil {
 			return service.Request{}, err
@@ -30,7 +31,7 @@ func (c *AWSCodec) DecodeRequest(r *http.Request) (service.Request, error) {
 		return req, nil
 	}
 
-	return service.Request{}, fmt.Errorf("aws codec: unsupported Content-Type %q: expected X-Amz-Target header or application/x-www-form-urlencoded", ct)
+	return DecodeRESTJSONRequest(r)
 }
 
 // EncodeResponse は service.Response を HTTP レスポンスとして出力します。
