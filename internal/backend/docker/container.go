@@ -17,6 +17,7 @@ import (
 type ContainerInfo struct {
 	State     string
 	IPAddress string
+	OOMKilled bool
 }
 
 // ContainerConfig holds configuration for creating and running a container.
@@ -159,12 +160,15 @@ func (c *Client) InspectContainer(ctx context.Context, containerID string) (Cont
 		}
 	}
 	state := ""
+	oomKilled := false
 	if info.State != nil {
 		state = info.State.Status
+		oomKilled = info.State.OOMKilled
 	}
 	return ContainerInfo{
 		State:     state,
 		IPAddress: ipAddress,
+		OOMKilled: oomKilled,
 	}, nil
 }
 

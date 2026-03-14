@@ -166,3 +166,104 @@ func TestLimiter_InvalidMemory_ReturnsError(t *testing.T) {
 	}
 }
 
+// --- DiskUsage tests ---
+
+type fakeDiskChecker struct {
+	bytesUsed int64
+	err       error
+}
+
+func (f *fakeDiskChecker) DiskUsageBytes(_ context.Context) (int64, error) {
+	return f.bytesUsed, f.err
+}
+
+func newTestLimiterWithQuota(quota string) (*Limiter, error) {
+	store := state.NewMemoryStore()
+	return NewLimiter(store, config.LimitsConfig{
+		MaxContainers: 10,
+		DefaultCPU:    "1",
+		DefaultMemory: "512m",
+		StorageQuota:  quota,
+	})
+}
+
+func TestLimiter_CheckDiskUsage_NoDiskChecker_ReturnsNil(t *testing.T) {
+	l, err := newTestLimiterWithQuota("10g")
+	if err != nil {
+		t.Fatalf("NewLimiter: %v", err)
+	}
+	// no disk checker set — should return nil
+	if err := l.CheckDiskUsage(context.Background()); err != nil {
+		t.Errorf("expected nil, got %v", err)
+	}
+}
+
+func TestLimiter_CheckDiskUsage_NoQuota_ReturnsNil(t *testing.T) {
+	store := state.NewMemoryStore()
+	l, err := NewLimiter(store, config.LimitsConfig{
+		MaxContainers: 10,
+		DefaultCPU:    "1",
+		DefaultMemory: "512m",
+		StorageQuota:  "", // no quota
+	})
+	if err != nil {
+		t.Fatalf("NewLimiter: %v", err)
+	}
+	l.SetDiskChecker(&fakeDiskChecker{bytesUsed: 999_999_999_999})
+	if err := l.CheckDiskUsage(context.Background()); err != nil {
+		t.Errorf("expected nil when no quota set, got %v", err)
+	}
+}
+
+func TestLimiter_CheckDiskUsage_UnderQuota_ReturnsNil(t *testing.T) {
+	l, err := newTestLimiterWithQuota("10g")
+	if err != nil {
+		t.Fatalf("NewLimiter: %v", err)
+	}
+	// 5 GB used, quota is 10 GB
+	l.SetDiskChecker(&fakeDiskChecker{bytesUsed: 5 * 1024 * 1024 * 1024})
+	if err := l.CheckDiskUsage(context.Background()); err != nil {
+		t.Errorf("expected nil for under-quota usage, got %v", err)
+	}
+}
+
+func TestLimiter_CheckDiskUsage_AtOrOverQuota_ReturnsErrLimitExceeded(t *testing.T) {
+	l, err := newTestLimiterWithQuota("10g")
+	if err != nil {
+		t.Fatalf("NewLimiter: %v", err)
+	}
+	// 10 GB used = at quota
+	l.SetDiskChecker(&fakeDiskChecker{bytesUsed: 10 * 1024 * 1024 * 1024})
+	err = l.CheckDiskUsage(context.Background())
+	if !errors.Is(err, models.ErrLimitExceeded) {
+		t.Errorf("expected ErrLimitExceeded at quota boundary, got %v", err)
+	}
+}
+
+func TestLimiter_CheckDiskUsage_DiskCheckerError_ReturnsError(t *testing.T) {
+	l, err := newTestLimiterWithQuota("10g")
+	if err != nil {
+		t.Fatalf("NewLimiter: %v", err)
+	}
+	l.SetDiskChecker(&fakeDiskChecker{err: errors.New("docker unreachable")})
+	err = l.CheckDiskUsage(context.Background())
+	if err == nil {
+		t.Fatal("expected error from disk checker, got nil")
+	}
+	if !strings.Contains(err.Error(), "docker unreachable") {
+		t.Errorf("expected wrapped error to contain 'docker unreachable', got: %q", err.Error())
+	}
+}
+
+func TestLimiter_InvalidStorageQuota_ReturnsError(t *testing.T) {
+	store := state.NewMemoryStore()
+	_, err := NewLimiter(store, config.LimitsConfig{
+		MaxContainers: 10,
+		DefaultCPU:    "1",
+		DefaultMemory: "512m",
+		StorageQuota:  "not-valid-quota",
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid storage_quota, got nil")
+	}
+}

@@ -50,6 +50,7 @@ type LockManager interface {
 // Limiter はリソース制限チェックを定義します。
 type Limiter interface {
 	CheckContainerLimit(ctx context.Context) error
+	CheckDiskUsage(ctx context.Context) error
 }
 
 // PortAllocator はポートの割り当てと解放を定義します。

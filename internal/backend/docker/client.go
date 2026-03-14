@@ -2,8 +2,10 @@ package docker
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/HMasataka/cloudia/internal/config"
+	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"go.uber.org/zap"
 )
@@ -45,6 +47,31 @@ func (c *Client) Ping(ctx context.Context) error {
 // Close closes the underlying Docker client connection.
 func (c *Client) Close() error {
 	return c.cli.Close()
+}
+
+// DiskUsageBytes returns the total disk usage in bytes of all Docker objects
+// (images, containers, local volumes, build cache).
+func (c *Client) DiskUsageBytes(ctx context.Context) (int64, error) {
+	usage, err := c.cli.DiskUsage(ctx, dockertypes.DiskUsageOptions{})
+	if err != nil {
+		return 0, fmt.Errorf("docker: failed to get disk usage: %w", err)
+	}
+	var total int64
+	for _, img := range usage.Images {
+		total += img.Size
+	}
+	for _, ctr := range usage.Containers {
+		total += ctr.SizeRw
+	}
+	for _, vol := range usage.Volumes {
+		total += vol.UsageData.Size
+	}
+	if usage.BuildCache != nil {
+		for _, bc := range usage.BuildCache {
+			total += bc.Size
+		}
+	}
+	return total, nil
 }
 
 // CleanupOrphans removes all cloudia-managed containers, networks, and volumes.
