@@ -48,4 +48,9 @@ func setDefaults(v *viper.Viper) {
 	// Metrics
 	v.SetDefault("metrics.enabled", false)
 	v.SetDefault("metrics.port", 9090)
+
+	// Auth
+	v.SetDefault("auth.mode", "local")
+	v.SetDefault("auth.aws.access_key", "test")
+	v.SetDefault("auth.aws.secret_key", "test")
 }

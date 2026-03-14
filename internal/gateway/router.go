@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -12,17 +11,12 @@ import (
 
 // NewRouter は HTTP ルーターを構築して返します。
 // ミドルウェアチェイン: recovery → logging → timeout → mux の順にラップします。
-func NewRouter(adminHandler *admin.Handler, logger *zap.Logger, timeout time.Duration) http.Handler {
+func NewRouter(adminHandler *admin.Handler, serviceHandler *ServiceHandler, logger *zap.Logger, timeout time.Duration) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", adminHandler.HealthHandler)
 	mux.HandleFunc("GET /admin/services", adminHandler.ServicesHandler)
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		provider := detectProvider(r)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unsupported operation", "provider": provider})
-	})
+	mux.Handle("/", serviceHandler)
 
 	var handler http.Handler = mux
 	handler = middleware.Timeout(timeout)(handler)
@@ -30,10 +24,4 @@ func NewRouter(adminHandler *admin.Handler, logger *zap.Logger, timeout time.Dur
 	handler = middleware.Recovery(logger)(handler)
 
 	return handler
-}
-
-// detectProvider はリクエストからプロバイダーを検出します。
-// v0.1 では常に空文字列を返すスタブです。
-func detectProvider(r *http.Request) string {
-	return ""
 }

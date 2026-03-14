@@ -13,10 +13,15 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/HMasataka/cloudia/internal/admin"
+	"github.com/HMasataka/cloudia/internal/auth"
 	"github.com/HMasataka/cloudia/internal/backend/docker"
 	"github.com/HMasataka/cloudia/internal/config"
 	"github.com/HMasataka/cloudia/internal/gateway"
 	"github.com/HMasataka/cloudia/internal/logging"
+	"github.com/HMasataka/cloudia/internal/protocol"
+	awsprotocol "github.com/HMasataka/cloudia/internal/protocol/aws"
+	gcpprotocol "github.com/HMasataka/cloudia/internal/protocol/gcp"
+	"github.com/HMasataka/cloudia/internal/service"
 )
 
 func newStartCmd() *cobra.Command {
@@ -84,9 +89,22 @@ func runStart(cmd *cobra.Command, args []string) error {
 	}
 	defer dockerClient.Close()
 
+	verifiers := map[string]auth.Verifier{
+		"aws": auth.NewSigV4Verifier(cfg.Auth.AWS),
+		"gcp": auth.NewOAuthVerifier(cfg.Auth.GCP),
+	}
+
+	codecs := map[string]protocol.Codec{
+		"aws": &awsprotocol.AWSCodec{},
+		"gcp": &gcpprotocol.GCPCodec{},
+	}
+
+	registry := service.NewRegistry()
+
+	serviceHandler := gateway.NewServiceHandler(verifiers, codecs, registry, logger)
 	adminHandler := admin.NewHandler(dockerClient, logger)
-	router := gateway.NewRouter(adminHandler, logger, cfg.Server.Timeout)
-	server := gateway.NewServer(cfg.Server, router, logger)
+	router := gateway.NewRouter(adminHandler, serviceHandler, logger, cfg.Server.Timeout)
+	server := gateway.NewServer(cfg.Server, cfg.Endpoints, router, logger)
 
 	if err := server.Start(); err != nil {
 		return fmt.Errorf("failed to start server: %w", err)

@@ -8,12 +8,27 @@ import (
 	"github.com/HMasataka/cloudia/pkg/models"
 )
 
+// ServiceMeta はサービスのメタデータを保持します。
+type ServiceMeta struct {
+	// Provider はプロバイダ名です (例: "aws", "gcp")。
+	Provider string
+	// Name はサービス名です (例: "s3", "compute")。
+	Name string
+	// PathPrefixes は GCP 用のパスプレフィックス一覧です。
+	PathPrefixes []string
+	// TargetPrefix は AWS JSON プロトコル用のターゲットプレフィックスです。
+	TargetPrefix string
+	// AWSProtocol は AWS のプロトコル種別です ("query" or "json")。
+	AWSProtocol string
+}
+
 // Registry はサービスの登録・解決・ライフサイクル管理を担います。
 type Registry struct {
 	mu       sync.RWMutex
 	services map[string]Service
-	order    []string         // 登録順序を保持（逆順 Shutdown のため）
-	backends map[string]any   // 共有バックエンド
+	order    []string        // 登録順序を保持（逆順 Shutdown のため）
+	backends map[string]any  // 共有バックエンド
+	metas    map[string]ServiceMeta // キーは "provider:name"
 }
 
 // NewRegistry は空の Registry を返します。
@@ -22,6 +37,7 @@ func NewRegistry() *Registry {
 		services: make(map[string]Service),
 		order:    []string{},
 		backends: make(map[string]any),
+		metas:    make(map[string]ServiceMeta),
 	}
 }
 
@@ -41,6 +57,39 @@ func (r *Registry) Register(svc Service) error {
 	r.order = append(r.order, key)
 
 	return nil
+}
+
+// RegisterWithMeta はメタデータ付きでサービスを登録します。
+// 内部で Register を呼んだ後、meta を "provider:name" キーで保存します。
+// 同一キーが既に登録されている場合は models.ErrAlreadyExists を返します。
+func (r *Registry) RegisterWithMeta(svc Service, meta ServiceMeta) error {
+	if err := r.Register(svc); err != nil {
+		return err
+	}
+
+	key := fmt.Sprintf("%s:%s", svc.Provider(), svc.Name())
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.metas[key] = meta
+
+	return nil
+}
+
+// MetaByProvider は指定プロバイダのメタデータ一覧を返します。
+func (r *Registry) MetaByProvider(provider string) []ServiceMeta {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var result []ServiceMeta
+	for _, meta := range r.metas {
+		if meta.Provider == provider {
+			result = append(result, meta)
+		}
+	}
+
+	return result
 }
 
 // Resolve は provider と name からサービスを取得します。

@@ -1,0 +1,64 @@
+package auth
+
+import (
+	"errors"
+	"net/http"
+	"strings"
+)
+
+// ErrUnknownProvider はリクエストからプロバイダを特定できない場合に返されるエラーです。
+var ErrUnknownProvider = errors.New("unknown provider")
+
+// DetectProvider はリクエストのヘッダーと URL パスを検査し、クラウドプロバイダ名を返します。
+// 検出優先順位:
+//  1. Authorization ヘッダーが "AWS4-HMAC-SHA256 " で始まる -> "aws"
+//  2. X-Amz-Target ヘッダーが存在する -> "aws"
+//  3. X-Amz-Date ヘッダーが存在する -> "aws"
+//  4. Authorization ヘッダーが "Bearer " で始まる -> "gcp"
+//  5. URL パスが GCP パスプレフィックスにマッチする -> "gcp"
+//  6. いずれにも該当しない -> ErrUnknownProvider
+func DetectProvider(r *http.Request) (string, error) {
+	authHeader := r.Header.Get("Authorization")
+
+	// 1. AWS Signature Version 4
+	if strings.HasPrefix(authHeader, "AWS4-HMAC-SHA256 ") {
+		return "aws", nil
+	}
+
+	// 2. X-Amz-Target ヘッダー
+	if r.Header.Get("X-Amz-Target") != "" {
+		return "aws", nil
+	}
+
+	// 3. X-Amz-Date ヘッダー
+	if r.Header.Get("X-Amz-Date") != "" {
+		return "aws", nil
+	}
+
+	// 4. Bearer トークン (GCP OAuth2)
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		return "gcp", nil
+	}
+
+	// 5. GCP API パスプレフィックス
+	if isGCPPath(r.URL.Path) {
+		return "gcp", nil
+	}
+
+	return "", ErrUnknownProvider
+}
+
+var gcpPathPrefixes = []string{
+	"/storage/v1/",
+	"/compute/v1/",
+	"/v1/projects/",
+}
+
+func isGCPPath(path string) bool {
+	for _, prefix := range gcpPathPrefixes {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	return false
+}

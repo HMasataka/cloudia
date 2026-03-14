@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -14,11 +15,22 @@ import (
 // Server は HTTP サーバーを保持します。
 type Server struct {
 	httpServer *http.Server
+	endpoints  map[string]*http.Server
 	logger     *zap.Logger
 }
 
 // NewServer は Server のコンストラクタです。
-func NewServer(cfg config.ServerConfig, router http.Handler, logger *zap.Logger) *Server {
+func NewServer(cfg config.ServerConfig, endpointsCfg config.EndpointsConfig, router http.Handler, logger *zap.Logger) *Server {
+	endpoints := make(map[string]*http.Server, len(endpointsCfg.Services))
+	for name, svc := range endpointsCfg.Services {
+		endpoints[name] = &http.Server{
+			Addr:              fmt.Sprintf(":%d", svc.Port),
+			Handler:           router,
+			ReadHeaderTimeout: 10 * time.Second,
+			IdleTimeout:       120 * time.Second,
+		}
+	}
+
 	return &Server{
 		httpServer: &http.Server{
 			Addr:              fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
@@ -26,7 +38,8 @@ func NewServer(cfg config.ServerConfig, router http.Handler, logger *zap.Logger)
 			ReadHeaderTimeout: 10 * time.Second,
 			IdleTimeout:       120 * time.Second,
 		},
-		logger: logger,
+		endpoints: endpoints,
+		logger:    logger,
 	}
 }
 
@@ -34,15 +47,29 @@ func NewServer(cfg config.ServerConfig, router http.Handler, logger *zap.Logger)
 // net.Listen でポートを事前に確保し、Serve を goroutine で呼び出します。
 // http.ErrServerClosed はエラーとして扱いません。
 func (s *Server) Start() error {
-	s.logger.Info("gateway server starting", zap.String("addr", s.httpServer.Addr))
+	if err := s.startServer(s.httpServer); err != nil {
+		return err
+	}
 
-	ln, err := net.Listen("tcp", s.httpServer.Addr)
+	for name, srv := range s.endpoints {
+		if err := s.startServer(srv); err != nil {
+			return fmt.Errorf("endpoint %q: %w", name, err)
+		}
+	}
+
+	return nil
+}
+
+func (s *Server) startServer(srv *http.Server) error {
+	s.logger.Info("gateway server starting", zap.String("addr", srv.Addr))
+
+	ln, err := net.Listen("tcp", srv.Addr)
 	if err != nil {
-		return fmt.Errorf("failed to listen on %s: %w", s.httpServer.Addr, err)
+		return fmt.Errorf("failed to listen on %s: %w", srv.Addr, err)
 	}
 
 	go func() {
-		if err := s.httpServer.Serve(ln); err != nil && err != http.ErrServerClosed {
+		if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			s.logger.Error("gateway server error", zap.Error(err))
 		}
 	}()
@@ -52,7 +79,19 @@ func (s *Server) Start() error {
 
 // Shutdown はサーバーをグレースフルにシャットダウンします。
 func (s *Server) Shutdown(ctx context.Context) error {
-	return s.httpServer.Shutdown(ctx)
+	var errs []error
+
+	if err := s.httpServer.Shutdown(ctx); err != nil {
+		errs = append(errs, fmt.Errorf("main server: %w", err))
+	}
+
+	for name, srv := range s.endpoints {
+		if err := srv.Shutdown(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("endpoint %q: %w", name, err))
+		}
+	}
+
+	return errors.Join(errs...)
 }
 
 // Addr はリッスンアドレスを返します。

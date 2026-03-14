@@ -264,6 +264,107 @@ func TestRegistry_SharedBackend_UnregisteredReturnsNil(t *testing.T) {
 	}
 }
 
+func TestRegistry_RegisterWithMeta_StoresMetaData(t *testing.T) {
+	reg := service.NewRegistry()
+	svc := newMockService("aws", "s3")
+	meta := service.ServiceMeta{
+		Provider:     "aws",
+		Name:         "s3",
+		TargetPrefix: "S3_20060301",
+		AWSProtocol:  "query",
+	}
+
+	if err := reg.RegisterWithMeta(svc, meta); err != nil {
+		t.Fatalf("RegisterWithMeta failed: %v", err)
+	}
+
+	// Resolve も正常に動作することを確認
+	got, err := reg.Resolve("aws", "s3")
+	if err != nil {
+		t.Fatalf("Resolve after RegisterWithMeta failed: %v", err)
+	}
+	if got.Name() != "s3" || got.Provider() != "aws" {
+		t.Errorf("unexpected service: %s:%s", got.Provider(), got.Name())
+	}
+}
+
+func TestRegistry_RegisterWithMeta_DuplicateReturnsErrAlreadyExists(t *testing.T) {
+	reg := service.NewRegistry()
+	svc := newMockService("aws", "s3")
+	meta := service.ServiceMeta{Provider: "aws", Name: "s3"}
+
+	if err := reg.RegisterWithMeta(svc, meta); err != nil {
+		t.Fatalf("first RegisterWithMeta failed: %v", err)
+	}
+
+	err := reg.RegisterWithMeta(svc, meta)
+	if !errors.Is(err, models.ErrAlreadyExists) {
+		t.Errorf("expected ErrAlreadyExists, got %v", err)
+	}
+}
+
+func TestRegistry_MetaByProvider_ReturnsCorrectMetas(t *testing.T) {
+	reg := service.NewRegistry()
+
+	awsS3 := newMockService("aws", "s3")
+	awsEC2 := newMockService("aws", "ec2")
+	gcpStorage := newMockService("gcp", "storage")
+
+	reg.RegisterWithMeta(awsS3, service.ServiceMeta{ //nolint
+		Provider:    "aws",
+		Name:        "s3",
+		AWSProtocol: "query",
+	})
+	reg.RegisterWithMeta(awsEC2, service.ServiceMeta{ //nolint
+		Provider:    "aws",
+		Name:        "ec2",
+		AWSProtocol: "query",
+	})
+	reg.RegisterWithMeta(gcpStorage, service.ServiceMeta{ //nolint
+		Provider:     "gcp",
+		Name:         "storage",
+		PathPrefixes: []string{"/storage/v1/"},
+	})
+
+	awsMetas := reg.MetaByProvider("aws")
+	if len(awsMetas) != 2 {
+		t.Errorf("expected 2 AWS metas, got %d: %+v", len(awsMetas), awsMetas)
+	}
+
+	gcpMetas := reg.MetaByProvider("gcp")
+	if len(gcpMetas) != 1 {
+		t.Errorf("expected 1 GCP meta, got %d: %+v", len(gcpMetas), gcpMetas)
+	}
+	if gcpMetas[0].Name != "storage" {
+		t.Errorf("expected gcp:storage meta, got %+v", gcpMetas[0])
+	}
+}
+
+func TestRegistry_MetaByProvider_UnknownProviderReturnsEmpty(t *testing.T) {
+	reg := service.NewRegistry()
+
+	metas := reg.MetaByProvider("azure")
+	if len(metas) != 0 {
+		t.Errorf("expected empty slice for unknown provider, got %v", metas)
+	}
+}
+
+func TestRegistry_MetaByProvider_OnlyRegisteredWithMeta(t *testing.T) {
+	reg := service.NewRegistry()
+
+	// Register のみ（RegisterWithMeta は使わない）
+	svc := newMockService("aws", "s3")
+	if err := reg.Register(svc); err != nil {
+		t.Fatalf("Register failed: %v", err)
+	}
+
+	// メタデータは登録されていないので空を返す
+	metas := reg.MetaByProvider("aws")
+	if len(metas) != 0 {
+		t.Errorf("expected empty metas for Register-only service, got %v", metas)
+	}
+}
+
 func TestRegistry_ConcurrentRegisterAndResolve(t *testing.T) {
 	reg := service.NewRegistry()
 	var wg sync.WaitGroup

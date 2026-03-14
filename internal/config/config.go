@@ -12,14 +12,44 @@ import (
 
 // Config はトップレベルの設定構造体です。
 type Config struct {
-	Server  ServerConfig  `mapstructure:"server"  yaml:"server"`
-	Logging LoggingConfig `mapstructure:"logging" yaml:"logging"`
-	Docker  DockerConfig  `mapstructure:"docker"  yaml:"docker"`
-	Limits  LimitsConfig  `mapstructure:"limits"  yaml:"limits"`
-	State   StateConfig   `mapstructure:"state"   yaml:"state"`
-	Cleanup CleanupConfig `mapstructure:"cleanup" yaml:"cleanup"`
-	Metrics MetricsConfig `mapstructure:"metrics" yaml:"metrics"`
-	Ports   PortConfig    `mapstructure:"ports"   yaml:"ports"`
+	Server    ServerConfig    `mapstructure:"server"    yaml:"server"`
+	Logging   LoggingConfig   `mapstructure:"logging"   yaml:"logging"`
+	Docker    DockerConfig    `mapstructure:"docker"    yaml:"docker"`
+	Limits    LimitsConfig    `mapstructure:"limits"    yaml:"limits"`
+	State     StateConfig     `mapstructure:"state"     yaml:"state"`
+	Cleanup   CleanupConfig   `mapstructure:"cleanup"   yaml:"cleanup"`
+	Metrics   MetricsConfig   `mapstructure:"metrics"   yaml:"metrics"`
+	Ports     PortConfig      `mapstructure:"ports"     yaml:"ports"`
+	Auth      AuthConfig      `mapstructure:"auth"      yaml:"auth"`
+	Endpoints EndpointsConfig `mapstructure:"endpoints" yaml:"endpoints"`
+}
+
+// AWSAuthConfig は AWS 認証の設定です。
+type AWSAuthConfig struct {
+	AccessKey string `mapstructure:"access_key" yaml:"access_key"`
+	SecretKey string `mapstructure:"secret_key" yaml:"secret_key"`
+}
+
+// GCPAuthConfig は GCP 認証の設定です。
+type GCPAuthConfig struct {
+	CredentialsFile string `mapstructure:"credentials_file" yaml:"credentials_file"`
+}
+
+// AuthConfig は認証の設定です。
+type AuthConfig struct {
+	Mode string        `mapstructure:"mode" yaml:"mode"`
+	AWS  AWSAuthConfig `mapstructure:"aws"  yaml:"aws"`
+	GCP  GCPAuthConfig `mapstructure:"gcp"  yaml:"gcp"`
+}
+
+// ServiceEndpointConfig は個々のサービスエンドポイントの設定です。
+type ServiceEndpointConfig struct {
+	Port int `mapstructure:"port" yaml:"port"`
+}
+
+// EndpointsConfig はサービスエンドポイントの設定です。
+type EndpointsConfig struct {
+	Services map[string]ServiceEndpointConfig `mapstructure:"services" yaml:"services"`
 }
 
 // ServerConfig はHTTPサーバーの設定です。

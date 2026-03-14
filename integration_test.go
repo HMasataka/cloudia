@@ -49,7 +49,7 @@ func TestIntegration_GatewayServer(t *testing.T) {
 	// c. サーバー構築
 	adminHandler := admin.NewHandler(nil, logger)
 	router := gateway.NewRouter(adminHandler, logger, cfg.Server.Timeout)
-	server := gateway.NewServer(cfg.Server, router, logger)
+	server := gateway.NewServer(cfg.Server, cfg.Endpoints, router, logger)
 
 	// d. サーバー起動
 	if err := server.Start(); err != nil {

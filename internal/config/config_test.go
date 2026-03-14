@@ -100,6 +100,17 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.Metrics.Port != 9090 {
 		t.Errorf("Metrics.Port = %d, want %d", cfg.Metrics.Port, 9090)
 	}
+
+	// Auth defaults
+	if cfg.Auth.Mode != "local" {
+		t.Errorf("Auth.Mode = %q, want %q", cfg.Auth.Mode, "local")
+	}
+	if cfg.Auth.AWS.AccessKey != "test" {
+		t.Errorf("Auth.AWS.AccessKey = %q, want %q", cfg.Auth.AWS.AccessKey, "test")
+	}
+	if cfg.Auth.AWS.SecretKey != "test" {
+		t.Errorf("Auth.AWS.SecretKey = %q, want %q", cfg.Auth.AWS.SecretKey, "test")
+	}
 }
 
 func TestLoadFromYAMLFile(t *testing.T) {
