@@ -54,11 +54,18 @@ type EndpointsConfig struct {
 	Services map[string]ServiceEndpointConfig `mapstructure:"services" yaml:"services"`
 }
 
+// IMDSConfig はIMDSサーバーの設定です。
+type IMDSConfig struct {
+	Enabled bool   `mapstructure:"enabled" yaml:"enabled"`
+	Address string `mapstructure:"address" yaml:"address"`
+}
+
 // ServerConfig はHTTPサーバーの設定です。
 type ServerConfig struct {
 	Host    string        `mapstructure:"host"    yaml:"host"`
 	Port    int           `mapstructure:"port"    yaml:"port"`
 	Timeout time.Duration `mapstructure:"timeout" yaml:"timeout"`
+	IMDS    IMDSConfig    `mapstructure:"imds"    yaml:"imds"`
 }
 
 // LoggingConfig はロガーの設定です。

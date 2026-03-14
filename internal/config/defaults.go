@@ -12,6 +12,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("server.host", "127.0.0.1")
 	v.SetDefault("server.port", 4566)
 	v.SetDefault("server.timeout", 30*time.Second)
+	v.SetDefault("server.imds.enabled", false)
+	v.SetDefault("server.imds.address", "169.254.169.254:80")
 
 	// Logging
 	v.SetDefault("logging.level", "info")

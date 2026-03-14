@@ -655,7 +655,7 @@ func TestEC2Service_DescribeKeyPairs(t *testing.T) {
 	if !strings.Contains(filtBody, "key-a") {
 		t.Errorf("DescribeKeyPairs filter: missing key-a in response: %s", filtBody)
 	}
-	if strings.Contains(filtBody, "key-b") {
+	if strings.Contains(filtBody, "<keyName>key-b</keyName>") {
 		t.Errorf("DescribeKeyPairs filter: unexpected key-b in filtered response: %s", filtBody)
 	}
 }

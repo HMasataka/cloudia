@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/HMasataka/cloudia/internal/config"
+	"github.com/HMasataka/cloudia/internal/gateway/imds"
+	"github.com/HMasataka/cloudia/internal/state"
 	"go.uber.org/zap"
 )
 
@@ -16,11 +18,21 @@ import (
 type Server struct {
 	httpServer *http.Server
 	endpoints  map[string]*http.Server
+	imdsServer *imds.Server
 	logger     *zap.Logger
 }
 
 // NewServer は Server のコンストラクタです。
 func NewServer(cfg config.ServerConfig, endpointsCfg config.EndpointsConfig, router http.Handler, logger *zap.Logger) *Server {
+	return newServer(cfg, endpointsCfg, router, nil, logger)
+}
+
+// NewServerWithStore は Store を受け取り IMDS サーバーも管理する Server を返します。
+func NewServerWithStore(cfg config.ServerConfig, endpointsCfg config.EndpointsConfig, router http.Handler, store state.Store, logger *zap.Logger) *Server {
+	return newServer(cfg, endpointsCfg, router, store, logger)
+}
+
+func newServer(cfg config.ServerConfig, endpointsCfg config.EndpointsConfig, router http.Handler, store state.Store, logger *zap.Logger) *Server {
 	endpoints := make(map[string]*http.Server, len(endpointsCfg.Services))
 	for name, svc := range endpointsCfg.Services {
 		endpoints[name] = &http.Server{
@@ -31,6 +43,11 @@ func NewServer(cfg config.ServerConfig, endpointsCfg config.EndpointsConfig, rou
 		}
 	}
 
+	var imdsSrv *imds.Server
+	if cfg.IMDS.Enabled && store != nil {
+		imdsSrv = imds.New(cfg.IMDS.Address, store, logger)
+	}
+
 	return &Server{
 		httpServer: &http.Server{
 			Addr:              fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
@@ -38,8 +55,9 @@ func NewServer(cfg config.ServerConfig, endpointsCfg config.EndpointsConfig, rou
 			ReadHeaderTimeout: 10 * time.Second,
 			IdleTimeout:       120 * time.Second,
 		},
-		endpoints: endpoints,
-		logger:    logger,
+		endpoints:  endpoints,
+		imdsServer: imdsSrv,
+		logger:     logger,
 	}
 }
 
@@ -54,6 +72,12 @@ func (s *Server) Start() error {
 	for name, srv := range s.endpoints {
 		if err := s.startServer(srv); err != nil {
 			return fmt.Errorf("endpoint %q: %w", name, err)
+		}
+	}
+
+	if s.imdsServer != nil {
+		if err := s.imdsServer.Start(); err != nil {
+			return fmt.Errorf("imds server: %w", err)
 		}
 	}
 
@@ -88,6 +112,12 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	for name, srv := range s.endpoints {
 		if err := srv.Shutdown(ctx); err != nil {
 			errs = append(errs, fmt.Errorf("endpoint %q: %w", name, err))
+		}
+	}
+
+	if s.imdsServer != nil {
+		if err := s.imdsServer.Shutdown(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("imds server: %w", err))
 		}
 	}
 
