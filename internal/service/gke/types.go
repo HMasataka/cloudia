@@ -28,7 +28,6 @@ type ClusterItem struct {
 	MasterAuth       MasterAuth `json:"masterAuth,omitempty"`
 	InitialNodeCount int        `json:"initialNodeCount,omitempty"`
 	MasterVersion    string     `json:"initialClusterVersion,omitempty"`
-	SelfLink         string     `json:"selfLink,omitempty"`
 }
 
 // MasterAuth はマスター認証情報を表します。

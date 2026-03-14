@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 
 	"go.uber.org/zap"
 
-	"github.com/HMasataka/cloudia/internal/config"
 	"github.com/HMasataka/cloudia/internal/service"
 )
 
@@ -28,6 +28,7 @@ type ClusterBackend interface {
 	Kubeconfig() string
 	CertificateAuthority() string
 	ContainerID() string
+	Shutdown(ctx context.Context) error
 }
 
 // BackendFactory は ClusterBackend を生成するファクトリ関数型です。
@@ -36,19 +37,20 @@ type BackendFactory func(logger *zap.Logger) ClusterBackend
 // EKSService は AWS EKS サービスのエミュレーションを行います。
 // k3s コンテナを EKS クラスタのバックエンドとして使用します。
 type EKSService struct {
-	cfg            config.AWSAuthConfig
 	store          service.Store
 	deps           service.ServiceDeps
 	logger         *zap.Logger
 	backendFactory BackendFactory
+	mu             sync.Mutex
+	backends       map[string]ClusterBackend
 }
 
 // NewEKSService は新しい EKSService を返します。
-func NewEKSService(cfg config.AWSAuthConfig, logger *zap.Logger) *EKSService {
+func NewEKSService(logger *zap.Logger) *EKSService {
 	return &EKSService{
-		cfg:            cfg,
 		logger:         logger,
 		backendFactory: defaultBackendFactory,
+		backends:       make(map[string]ClusterBackend),
 	}
 }
 
@@ -110,9 +112,23 @@ func (s *EKSService) Health(_ context.Context) service.HealthStatus {
 	return service.HealthStatus{Healthy: true, Message: "ok"}
 }
 
-// Shutdown はサービスをシャットダウンします。
-func (s *EKSService) Shutdown(_ context.Context) error {
-	return nil
+// Shutdown は管理中の全クラスタバックエンドを停止します。
+func (s *EKSService) Shutdown(ctx context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var firstErr error
+	for name, b := range s.backends {
+		if err := b.Shutdown(ctx); err != nil {
+			s.logger.Warn("eks: shutdown backend failed",
+				zap.String("cluster", name),
+				zap.Error(err),
+			)
+			if firstErr == nil {
+				firstErr = err
+			}
+		}
+	}
+	return firstErr
 }
 
 // clusterNameFromAction は "clusters/{name}" 形式の action から name を抽出します。

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 
 	"go.uber.org/zap"
 
@@ -38,6 +39,8 @@ type GKEService struct {
 	deps           service.ServiceDeps
 	logger         *zap.Logger
 	backendFactory ClusterBackendFactory
+	mu             sync.Mutex
+	backends       map[string]ClusterBackend
 }
 
 // NewGKEService は新しい GKEService を返します。
@@ -45,6 +48,7 @@ func NewGKEService(logger *zap.Logger) *GKEService {
 	return &GKEService{
 		logger:         logger,
 		backendFactory: defaultBackendFactory,
+		backends:       make(map[string]ClusterBackend),
 	}
 }
 
@@ -82,9 +86,23 @@ func (g *GKEService) Health(_ context.Context) service.HealthStatus {
 	return service.HealthStatus{Healthy: true, Message: "ok"}
 }
 
-// Shutdown は管理中のクラスタを全て停止・削除します。
-func (g *GKEService) Shutdown(_ context.Context) error {
-	return nil
+// Shutdown は管理中の全クラスタバックエンドを停止します。
+func (g *GKEService) Shutdown(ctx context.Context) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	var firstErr error
+	for storeID, b := range g.backends {
+		if err := b.Shutdown(ctx); err != nil {
+			g.logger.Warn("gke: shutdown backend failed",
+				zap.String("storeID", storeID),
+				zap.Error(err),
+			)
+			if firstErr == nil {
+				firstErr = err
+			}
+		}
+	}
+	return firstErr
 }
 
 // HandleRequest はアクションに応じてリクエストを処理します。

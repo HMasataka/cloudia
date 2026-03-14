@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"time"
 
 	"go.uber.org/zap"
@@ -15,6 +16,8 @@ import (
 	"github.com/HMasataka/cloudia/internal/state"
 	"github.com/HMasataka/cloudia/pkg/models"
 )
+
+var clusterNameRegexp = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9-]{0,99}$`)
 
 // defaultBackendFactory は本番用の ClusterBackend ファクトリです。
 func defaultBackendFactory(logger *zap.Logger) ClusterBackend {
@@ -35,6 +38,11 @@ func (s *EKSService) createCluster(ctx context.Context, req service.Request) (se
 	if createReq.Name == "" {
 		return jsonErrorResponse(http.StatusBadRequest, "InvalidParameterException",
 			"name is required")
+	}
+
+	if !clusterNameRegexp.MatchString(createReq.Name) {
+		return jsonErrorResponse(http.StatusBadRequest, "InvalidParameterException",
+			"cluster name must match ^[a-zA-Z][a-zA-Z0-9-]{0,99}$")
 	}
 
 	// 重複チェック
@@ -96,6 +104,10 @@ func (s *EKSService) createCluster(ctx context.Context, req service.Request) (se
 		return jsonErrorResponse(http.StatusInternalServerError, "ServiceException", err.Error())
 	}
 
+	s.mu.Lock()
+	s.backends[createReq.Name] = backend
+	s.mu.Unlock()
+
 	cluster := specToCluster(spec)
 	return jsonResponse(http.StatusOK, ClusterResponse{Cluster: cluster})
 }
@@ -131,8 +143,23 @@ func (s *EKSService) deleteCluster(ctx context.Context, req service.Request) (se
 		return jsonErrorResponse(http.StatusInternalServerError, "ServiceException", err.Error())
 	}
 
-	// コンテナが存在する場合は停止・削除
-	if resource.ContainerID != "" {
+	// バックエンドが存在する場合は Shutdown でコンテナ停止・ポート解放
+	s.mu.Lock()
+	backend, hasBackend := s.backends[name]
+	if hasBackend {
+		delete(s.backends, name)
+	}
+	s.mu.Unlock()
+
+	if hasBackend {
+		if err := backend.Shutdown(ctx); err != nil {
+			s.logger.Warn("eks: shutdown backend failed",
+				zap.String("cluster", name),
+				zap.Error(err),
+			)
+		}
+	} else if resource.ContainerID != "" {
+		// バックエンド参照がない場合は直接コンテナを停止
 		if err := s.deps.DockerClient.StopContainer(ctx, resource.ContainerID, nil); err != nil {
 			s.logger.Warn("eks: stop container failed",
 				zap.String("cluster", name),

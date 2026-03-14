@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/HMasataka/cloudia/internal/backend/docker"
-	"github.com/HMasataka/cloudia/internal/config"
 	"github.com/HMasataka/cloudia/internal/service"
 	"github.com/HMasataka/cloudia/internal/service/eks"
 	"github.com/HMasataka/cloudia/internal/state"
@@ -89,6 +88,8 @@ func (b *stubClusterBackend) ContainerID() string {
 	return b.containerID
 }
 
+func (b *stubClusterBackend) Shutdown(_ context.Context) error { return nil }
+
 // stubBackendFactory はスタブの ClusterBackend を返すファクトリです。
 func stubBackendFactory(_ *zap.Logger) eks.ClusterBackend {
 	return &stubClusterBackend{}
@@ -100,7 +101,7 @@ func stubBackendFactory(_ *zap.Logger) eks.ClusterBackend {
 func newTestEKSService(t *testing.T) *eks.EKSService {
 	t.Helper()
 
-	svc := eks.NewEKSService(config.AWSAuthConfig{}, zap.NewNop())
+	svc := eks.NewEKSService(zap.NewNop())
 	svc.SetBackendFactory(stubBackendFactory)
 
 	deps := service.ServiceDeps{
@@ -136,7 +137,7 @@ func handleEKSRequest(t *testing.T, svc *eks.EKSService, method, action string, 
 
 // TestEKSService_Name は Name() が "eks" を返すことを検証します。
 func TestEKSService_Name(t *testing.T) {
-	svc := eks.NewEKSService(config.AWSAuthConfig{}, zap.NewNop())
+	svc := eks.NewEKSService(zap.NewNop())
 	if got := svc.Name(); got != "eks" {
 		t.Errorf("Name() = %q, want %q", got, "eks")
 	}
@@ -144,7 +145,7 @@ func TestEKSService_Name(t *testing.T) {
 
 // TestEKSService_Provider は Provider() が "aws" を返すことを検証します。
 func TestEKSService_Provider(t *testing.T) {
-	svc := eks.NewEKSService(config.AWSAuthConfig{}, zap.NewNop())
+	svc := eks.NewEKSService(zap.NewNop())
 	if got := svc.Provider(); got != "aws" {
 		t.Errorf("Provider() = %q, want %q", got, "aws")
 	}
@@ -277,7 +278,7 @@ func TestEKSService_CreateCluster_Duplicate(t *testing.T) {
 
 // TestEKSService_DescribeCluster_NotFound は存在しないクラスタの取得で 404 を返すことを検証します。
 func TestEKSService_DescribeCluster_NotFound(t *testing.T) {
-	svc := eks.NewEKSService(config.AWSAuthConfig{}, zap.NewNop())
+	svc := eks.NewEKSService(zap.NewNop())
 	if err := svc.Init(context.Background(), service.ServiceDeps{
 		Store: state.NewMemoryStore(),
 	}); err != nil {
@@ -302,7 +303,7 @@ func TestEKSService_DescribeCluster_NotFound(t *testing.T) {
 
 // TestEKSService_ListClusters_Empty は空リストが返ることを検証します。
 func TestEKSService_ListClusters_Empty(t *testing.T) {
-	svc := eks.NewEKSService(config.AWSAuthConfig{}, zap.NewNop())
+	svc := eks.NewEKSService(zap.NewNop())
 	if err := svc.Init(context.Background(), service.ServiceDeps{
 		Store: state.NewMemoryStore(),
 	}); err != nil {

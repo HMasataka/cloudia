@@ -197,7 +197,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to register lambda service: %w", err)
 	}
 
-	if err := registry.Register(ekssvc.NewEKSService(cfg.Auth.AWS, logger)); err != nil {
+	if err := registry.Register(ekssvc.NewEKSService(logger)); err != nil {
 		return fmt.Errorf("failed to register eks service: %w", err)
 	}
 

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/HMasataka/cloudia/internal/state"
 	"github.com/HMasataka/cloudia/pkg/models"
 )
+
+var clusterNameRegexp = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9-]{0,99}$`)
 
 // clusterStoreID は project+location+name をキーとする store ID を生成します。
 func clusterStoreID(project, location, name string) string {
@@ -32,14 +35,23 @@ func (g *GKEService) createCluster(ctx context.Context, req service.Request, pro
 		return gkeErrorResponse(http.StatusBadRequest, "cluster name is required", "INVALID_ARGUMENT")
 	}
 
+	if !clusterNameRegexp.MatchString(body.Cluster.Name) {
+		return gkeErrorResponse(http.StatusBadRequest,
+			"cluster name must match ^[a-zA-Z][a-zA-Z0-9-]{0,99}$",
+			"INVALID_ARGUMENT")
+	}
+
 	storeID := clusterStoreID(project, location, body.Cluster.Name)
 
 	// 重複チェック
-	existing, err := g.store.Get(ctx, kindCluster, storeID)
-	if err == nil && existing != nil {
+	_, err := g.store.Get(ctx, kindCluster, storeID)
+	if err == nil {
 		return gkeErrorResponse(http.StatusConflict,
 			fmt.Sprintf("cluster %q already exists", body.Cluster.Name),
 			"ALREADY_EXISTS")
+	}
+	if !errors.Is(err, models.ErrNotFound) {
+		return gkeErrorResponse(http.StatusInternalServerError, err.Error(), "INTERNAL")
 	}
 
 	// k3s バックエンド起動
@@ -53,9 +65,6 @@ func (g *GKEService) createCluster(ctx context.Context, req service.Request, pro
 	}
 
 	initialNodeCount := body.Cluster.InitialNodeCount
-	if initialNodeCount == 0 {
-		initialNodeCount = 1
-	}
 	masterVersion := body.Cluster.MasterVersion
 	if masterVersion == "" {
 		masterVersion = "1.29"
@@ -93,6 +102,10 @@ func (g *GKEService) createCluster(ctx context.Context, req service.Request, pro
 		_ = backend.Shutdown(ctx)
 		return service.Response{StatusCode: http.StatusInternalServerError}, putErr
 	}
+
+	g.mu.Lock()
+	g.backends[storeID] = backend
+	g.mu.Unlock()
 
 	op := Operation{
 		Name:       "operation-create-" + body.Cluster.Name,
@@ -157,8 +170,23 @@ func (g *GKEService) deleteCluster(ctx context.Context, project, location, name 
 		return service.Response{StatusCode: http.StatusInternalServerError}, err
 	}
 
-	containerID := r.ContainerID
-	if containerID != "" {
+	g.mu.Lock()
+	backend, hasBackend := g.backends[storeID]
+	if hasBackend {
+		delete(g.backends, storeID)
+	}
+	g.mu.Unlock()
+
+	if hasBackend {
+		if err := backend.Shutdown(ctx); err != nil {
+			g.logger.Warn("gke deleteCluster: shutdown backend failed",
+				zap.String("name", name),
+				zap.Error(err),
+			)
+		}
+	} else if r.ContainerID != "" {
+		// バックエンド参照がない場合は直接コンテナを停止
+		containerID := r.ContainerID
 		if stopErr := g.deps.DockerClient.StopContainer(ctx, containerID, nil); stopErr != nil {
 			g.logger.Warn("gke deleteCluster: stop container failed",
 				zap.String("name", name),
