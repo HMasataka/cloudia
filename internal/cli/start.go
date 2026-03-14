@@ -29,6 +29,7 @@ import (
 	s3svc "github.com/HMasataka/cloudia/internal/service/s3"
 	sqssvc "github.com/HMasataka/cloudia/internal/service/sqs"
 	ec2svc "github.com/HMasataka/cloudia/internal/service/ec2"
+	elasticachesvc "github.com/HMasataka/cloudia/internal/service/elasticache"
 	sgsvc "github.com/HMasataka/cloudia/internal/service/sg"
 	vpcsvc "github.com/HMasataka/cloudia/internal/service/vpc"
 	"github.com/HMasataka/cloudia/internal/state"
@@ -159,6 +160,10 @@ func runStart(cmd *cobra.Command, args []string) error {
 
 	if err := registry.Register(gcesvc.NewGCEService(logger)); err != nil {
 		return fmt.Errorf("failed to register gce service: %w", err)
+	}
+
+	if err := registry.Register(elasticachesvc.NewElastiCacheService(cfg.Auth.AWS, logger)); err != nil {
+		return fmt.Errorf("failed to register elasticache service: %w", err)
 	}
 
 	if err := registry.InitAll(ctx, deps); err != nil {
