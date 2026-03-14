@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/HMasataka/cloudia/internal/config"
@@ -118,6 +119,10 @@ func (s *LambdaService) Shutdown(ctx context.Context) error {
 		}
 	}
 	s.pool = make(map[string]*containerEntry)
+
+	if err := os.RemoveAll(lambdaCodeDir); err != nil {
+		s.logger.Warn("lambda: remove code dir failed", zap.Error(err))
+	}
 
 	return nil
 }

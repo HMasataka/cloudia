@@ -25,9 +25,7 @@ const (
 
 // startupEntry はコンテナの単一起動を保証するためのエントリです。
 type startupEntry struct {
-	mu      sync.Mutex
-	started bool
-	err     error
+	mu sync.Mutex
 }
 
 // startupPool は関数名 → 起動エントリのマップです。
@@ -118,7 +116,7 @@ func (s *LambdaService) handleInvoke(w http.ResponseWriter, r *http.Request, fun
 
 	respBody, err := s.invokeFunction(invokeCtx, functionName, resource, payload)
 	if err != nil {
-		if invokeCtx.Err() == context.DeadlineExceeded {
+		if errors.Is(invokeCtx.Err(), context.DeadlineExceeded) {
 			writeError(w, http.StatusGatewayTimeout, "FunctionError",
 				fmt.Sprintf("Task timed out after %d seconds", timeoutSec))
 			return
@@ -186,6 +184,7 @@ func (s *LambdaService) ensureContainer(ctx context.Context, functionName string
 	// コンテナを起動
 	containerID, hostPort, baseURL, err := s.startContainer(ctx, functionName, resource)
 	if err != nil {
+		deleteStartupEntry(functionName)
 		return "", err
 	}
 

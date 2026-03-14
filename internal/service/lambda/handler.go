@@ -2,8 +2,17 @@ package lambda
 
 import (
 	"net/http"
+	"regexp"
 	"strings"
 )
+
+// validFunctionName は Lambda 関数名の許可パターンです。
+var validFunctionName = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,64}$`)
+
+// isValidFunctionName は関数名がパスインジェクションや不正文字を含まないか検証します。
+func isValidFunctionName(name string) bool {
+	return validFunctionName.MatchString(name)
+}
 
 // ServeHTTP はすべての Lambda リクエストを受け取り、URL パスと HTTP メソッドでルーティングします。
 // Lambda は REST API のため X-Amz-Target ヘッダーを使用しません。
@@ -52,6 +61,12 @@ func (s *LambdaService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	subPath := ""
 	if len(parts) == 2 {
 		subPath = parts[1]
+	}
+
+	if !isValidFunctionName(functionName) {
+		writeError(w, http.StatusBadRequest, "InvalidParameterValueException",
+			"FunctionName contains invalid characters or exceeds length limit")
+		return
 	}
 
 	switch subPath {

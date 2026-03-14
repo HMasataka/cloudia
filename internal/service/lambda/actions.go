@@ -25,6 +25,13 @@ const (
 	awsPartition      = "aws"
 	awsRegion         = "us-east-1"
 	awsAccountID      = "000000000000"
+
+	// maxZipFileBytes は base64 デコード後の zip ファイルサイズ上限 (50MB) です。
+	maxZipFileBytes = 50 * 1024 * 1024
+	// maxExtractedBytes は zip 展開後のファイル累計サイズ上限 (250MB) です。
+	maxExtractedBytes = 250 * 1024 * 1024
+	// maxRequestBodyBytes はリクエストボディサイズ上限 (70MB = base64 の 50MB 相当) です。
+	maxRequestBodyBytes = 70 * 1024 * 1024
 )
 
 // functionDir は関数コードの展開先ディレクトリパスを返します。
@@ -40,6 +47,8 @@ func functionARN(functionName string) string {
 // handleCreateFunction は CreateFunction API を処理します。
 func (s *LambdaService) handleCreateFunction(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
+	r.Body = io.NopCloser(io.LimitReader(r.Body, maxRequestBodyBytes))
 
 	var req CreateFunctionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -164,8 +173,7 @@ func (s *LambdaService) handleGetFunction(w http.ResponseWriter, r *http.Request
 func (s *LambdaService) handleDeleteFunction(w http.ResponseWriter, r *http.Request, functionName string) {
 	ctx := r.Context()
 
-	resource, err := s.store.Get(ctx, resourceKind, functionName)
-	if err != nil {
+	if _, err := s.store.Get(ctx, resourceKind, functionName); err != nil {
 		if errors.Is(err, models.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "ResourceNotFoundException",
 				fmt.Sprintf("Function not found: %s", functionARN(functionName)))
@@ -176,23 +184,23 @@ func (s *LambdaService) handleDeleteFunction(w http.ResponseWriter, r *http.Requ
 	}
 
 	// コンテナが起動中であれば停止・削除
-	if resource.ContainerID != "" {
-		if err := s.docker.StopContainer(ctx, resource.ContainerID, nil); err != nil {
-			s.logger.Sugar().Warnf("lambda: stop container %s: %v", resource.ContainerID, err)
+	s.poolMu.Lock()
+	entry, hasEntry := s.pool[functionName]
+	if hasEntry {
+		if entry.hostPort != 0 {
+			s.ports.Release(entry.hostPort)
 		}
-		if err := s.docker.RemoveContainer(ctx, resource.ContainerID); err != nil {
-			s.logger.Sugar().Warnf("lambda: remove container %s: %v", resource.ContainerID, err)
-		}
+		delete(s.pool, functionName)
+	}
+	s.poolMu.Unlock()
 
-		// プールからも削除
-		s.poolMu.Lock()
-		if entry, ok := s.pool[functionName]; ok {
-			if entry.hostPort != 0 {
-				s.ports.Release(entry.hostPort)
-			}
-			delete(s.pool, functionName)
+	if hasEntry && entry.containerID != "" {
+		if err := s.docker.StopContainer(ctx, entry.containerID, nil); err != nil {
+			s.logger.Sugar().Warnf("lambda: stop container %s: %v", entry.containerID, err)
 		}
-		s.poolMu.Unlock()
+		if err := s.docker.RemoveContainer(ctx, entry.containerID); err != nil {
+			s.logger.Sugar().Warnf("lambda: remove container %s: %v", entry.containerID, err)
+		}
 	}
 
 	// State Store から削除
@@ -242,6 +250,8 @@ func (s *LambdaService) handleUpdateFunctionCode(w http.ResponseWriter, r *http.
 		return
 	}
 
+	r.Body = io.NopCloser(io.LimitReader(r.Body, maxRequestBodyBytes))
+
 	var req UpdateFunctionCodeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "InvalidParameterValueException", "invalid request body: "+err.Error())
@@ -265,24 +275,23 @@ func (s *LambdaService) handleUpdateFunctionCode(w http.ResponseWriter, r *http.
 	}
 
 	// コンテナが起動中の場合は停止 (次回 Invoke で再起動)
-	if resource.ContainerID != "" {
-		if err := s.docker.StopContainer(ctx, resource.ContainerID, nil); err != nil {
-			s.logger.Sugar().Warnf("lambda: stop container for update %s: %v", resource.ContainerID, err)
+	s.poolMu.Lock()
+	updateEntry, hasUpdateEntry := s.pool[functionName]
+	if hasUpdateEntry {
+		if updateEntry.hostPort != 0 {
+			s.ports.Release(updateEntry.hostPort)
 		}
-		if err := s.docker.RemoveContainer(ctx, resource.ContainerID); err != nil {
-			s.logger.Sugar().Warnf("lambda: remove container for update %s: %v", resource.ContainerID, err)
-		}
+		delete(s.pool, functionName)
+	}
+	s.poolMu.Unlock()
 
-		s.poolMu.Lock()
-		if entry, ok := s.pool[functionName]; ok {
-			if entry.hostPort != 0 {
-				s.ports.Release(entry.hostPort)
-			}
-			delete(s.pool, functionName)
+	if hasUpdateEntry && updateEntry.containerID != "" {
+		if err := s.docker.StopContainer(ctx, updateEntry.containerID, nil); err != nil {
+			s.logger.Sugar().Warnf("lambda: stop container for update %s: %v", updateEntry.containerID, err)
 		}
-		s.poolMu.Unlock()
-
-		resource.ContainerID = ""
+		if err := s.docker.RemoveContainer(ctx, updateEntry.containerID); err != nil {
+			s.logger.Sugar().Warnf("lambda: remove container for update %s: %v", updateEntry.containerID, err)
+		}
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -313,6 +322,11 @@ func deployZipFile(functionName, zipFileBase64 string) (int64, string, error) {
 		return 0, "", fmt.Errorf("base64 decode: %w", err)
 	}
 
+	// zip サイズ上限チェック
+	if int64(len(zipBytes)) > maxZipFileBytes {
+		return 0, "", fmt.Errorf("ZipFile exceeds maximum allowed size of %d bytes", maxZipFileBytes)
+	}
+
 	// SHA256 計算
 	hash := sha256.Sum256(zipBytes)
 	codeSha256 := fmt.Sprintf("%x", hash)
@@ -330,6 +344,13 @@ func deployZipFile(functionName, zipFileBase64 string) (int64, string, error) {
 
 	var totalSize int64
 	for _, f := range zipReader.File {
+		fi := f.FileInfo()
+
+		// シンボリックリンクをスキップ
+		if fi.Mode()&os.ModeSymlink != 0 {
+			continue
+		}
+
 		destPath := filepath.Join(destDir, filepath.Clean(f.Name))
 
 		// ディレクトリトラバーサル防止
@@ -337,7 +358,7 @@ func deployZipFile(functionName, zipFileBase64 string) (int64, string, error) {
 			return 0, "", fmt.Errorf("unsafe path in zip: %s", f.Name)
 		}
 
-		if f.FileInfo().IsDir() {
+		if fi.IsDir() {
 			if err := os.MkdirAll(destPath, 0755); err != nil {
 				return 0, "", fmt.Errorf("create dir %s: %w", destPath, err)
 			}
@@ -360,7 +381,8 @@ func deployZipFile(functionName, zipFileBase64 string) (int64, string, error) {
 			return 0, "", fmt.Errorf("create file %s: %w", destPath, err)
 		}
 
-		n, err := io.Copy(outFile, rc)
+		// 展開サイズ上限チェックしながらコピー
+		n, err := io.Copy(outFile, io.LimitReader(rc, maxExtractedBytes-totalSize+1))
 		outFile.Close()
 		rc.Close()
 		if err != nil {
@@ -368,6 +390,9 @@ func deployZipFile(functionName, zipFileBase64 string) (int64, string, error) {
 		}
 
 		totalSize += n
+		if totalSize > maxExtractedBytes {
+			return 0, "", fmt.Errorf("extracted files exceed maximum allowed size of %d bytes", maxExtractedBytes)
+		}
 	}
 
 	return totalSize, codeSha256, nil
