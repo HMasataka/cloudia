@@ -62,6 +62,10 @@ type ContainerRunner interface {
 	RunContainer(ctx context.Context, cfg docker.ContainerConfig) (string, error)
 	StopContainer(ctx context.Context, containerID string, timeout *int) error
 	RemoveContainer(ctx context.Context, containerID string) error
+	StartContainer(ctx context.Context, containerID string) error
+	PauseContainer(ctx context.Context, containerID string) error
+	UnpauseContainer(ctx context.Context, containerID string) error
+	InspectContainer(ctx context.Context, containerID string) (docker.ContainerInfo, error)
 }
 
 // NetworkManager は Docker ネットワークの操作を定義します。

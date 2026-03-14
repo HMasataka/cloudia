@@ -27,6 +27,7 @@ import (
 	iamsvc "github.com/HMasataka/cloudia/internal/service/iam"
 	s3svc "github.com/HMasataka/cloudia/internal/service/s3"
 	sqssvc "github.com/HMasataka/cloudia/internal/service/sqs"
+	ec2svc "github.com/HMasataka/cloudia/internal/service/ec2"
 	vpcsvc "github.com/HMasataka/cloudia/internal/service/vpc"
 	"github.com/HMasataka/cloudia/internal/state"
 )
@@ -144,6 +145,10 @@ func runStart(cmd *cobra.Command, args []string) error {
 
 	if err := registry.Register(vpcsvc.NewVPCService(cfg.Auth.AWS, logger)); err != nil {
 		return fmt.Errorf("failed to register vpc service: %w", err)
+	}
+
+	if err := registry.Register(ec2svc.NewEC2Service(cfg.Auth.AWS, logger)); err != nil {
+		return fmt.Errorf("failed to register ec2 service: %w", err)
 	}
 
 	if err := registry.InitAll(ctx, deps); err != nil {

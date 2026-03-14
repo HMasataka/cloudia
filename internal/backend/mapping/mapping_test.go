@@ -103,6 +103,32 @@ func TestResolveMachineType_defaultMap(t *testing.T) {
 	}
 }
 
+// --- AMI Docker ---
+
+func TestResolveDockerImage_known(t *testing.T) {
+	cases := []struct {
+		amiID string
+		want  string
+	}{
+		{"ami-0c02fb55956c7d316", "ubuntu:22.04"},
+		{"ami-0c55b159cbfafe1f0", "amazonlinux:2"},
+		{"ami-09a41e26df96c4aef", "debian:11"},
+	}
+	for _, tc := range cases {
+		got := ResolveDockerImage(tc.amiID)
+		if got != tc.want {
+			t.Errorf("ResolveDockerImage(%q) = %q, want %q", tc.amiID, got, tc.want)
+		}
+	}
+}
+
+func TestResolveDockerImage_unknown(t *testing.T) {
+	got := ResolveDockerImage("ami-unknown-xxx")
+	if got != "ubuntu:22.04" {
+		t.Errorf("ResolveDockerImage(unknown) = %q, want %q", got, "ubuntu:22.04")
+	}
+}
+
 // --- Runtime ---
 
 func TestResolveRuntime_registered(t *testing.T) {

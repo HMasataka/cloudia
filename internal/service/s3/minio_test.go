@@ -56,6 +56,22 @@ func (s *stubContainerRunner) RemoveContainer(_ context.Context, _ string) error
 	return s.removeErr
 }
 
+func (s *stubContainerRunner) StartContainer(_ context.Context, _ string) error {
+	return nil
+}
+
+func (s *stubContainerRunner) PauseContainer(_ context.Context, _ string) error {
+	return nil
+}
+
+func (s *stubContainerRunner) UnpauseContainer(_ context.Context, _ string) error {
+	return nil
+}
+
+func (s *stubContainerRunner) InspectContainer(_ context.Context, _ string) (docker.ContainerInfo, error) {
+	return docker.ContainerInfo{}, nil
+}
+
 // --- S3Service identity tests ---
 
 func TestS3Service_Name(t *testing.T) {

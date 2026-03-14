@@ -11,6 +11,12 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
+// ContainerInfo holds runtime state information for a container.
+type ContainerInfo struct {
+	State     string
+	IPAddress string
+}
+
 // ContainerConfig holds configuration for creating and running a container.
 type ContainerConfig struct {
 	Image       string
@@ -111,6 +117,49 @@ func (c *Client) StopContainer(ctx context.Context, containerID string, timeout 
 // RemoveContainer force-removes a container.
 func (c *Client) RemoveContainer(ctx context.Context, containerID string) error {
 	return c.cli.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: true})
+}
+
+// StartContainer starts a stopped container.
+func (c *Client) StartContainer(ctx context.Context, containerID string) error {
+	return c.cli.ContainerStart(ctx, containerID, container.StartOptions{})
+}
+
+// PauseContainer pauses a running container.
+func (c *Client) PauseContainer(ctx context.Context, containerID string) error {
+	return c.cli.ContainerPause(ctx, containerID)
+}
+
+// UnpauseContainer unpauses a paused container.
+func (c *Client) UnpauseContainer(ctx context.Context, containerID string) error {
+	return c.cli.ContainerUnpause(ctx, containerID)
+}
+
+// InspectContainer returns state information for a container.
+func (c *Client) InspectContainer(ctx context.Context, containerID string) (ContainerInfo, error) {
+	info, err := c.cli.ContainerInspect(ctx, containerID)
+	if err != nil {
+		return ContainerInfo{}, err
+	}
+	var ipAddress string
+	if info.NetworkSettings != nil {
+		ipAddress = info.NetworkSettings.IPAddress
+		if ipAddress == "" {
+			for _, n := range info.NetworkSettings.Networks {
+				if n != nil && n.IPAddress != "" {
+					ipAddress = n.IPAddress
+					break
+				}
+			}
+		}
+	}
+	state := ""
+	if info.State != nil {
+		state = info.State.Status
+	}
+	return ContainerInfo{
+		State:     state,
+		IPAddress: ipAddress,
+	}, nil
 }
 
 // ListManagedContainers returns all containers labelled with cloudia.managed=true.
