@@ -130,10 +130,10 @@ CLI → Gateway → Auth (SigV4/OAuth) → Protocol (XML/JSON変換) → Service
 **ゴール**: コンテナバックエンドを持たない軽量サービスを実装。EC2/Lambda の前提条件となるリソースを揃える
 **完動品としての価値**: Terraform で IAM ロール/ポリシー、VPC/サブネット、SQS キューの作成が可能
 
-- [ ] AWS IAM サービス (`internal/service/aws/iam/`): service.go, handlers.go, models.go — CreateRole, DeleteRole, GetRole, ListRoles, CreatePolicy, DeletePolicy, GetPolicy, ListPolicies, AttachRolePolicy, DetachRolePolicy, CreateUser, DeleteUser, GetUser, ListUsers の各ハンドラ実装。ポリシー評価はスキップ（格納のみ）
-- [ ] AWS VPC サービス (`internal/service/aws/vpc/`): service.go, handlers.go, models.go — CreateVpc, DeleteVpc, DescribeVpcs, CreateSubnet, DeleteSubnet, DescribeSubnets の各ハンドラ実装。バックエンドは Docker ネットワーク（VPC ごとに 1 ネットワーク作成）。Gateway ルーティングで EC2 Action パラメータ空間から VPC アクションを振り分ける処理を追加
-- [ ] AWS SQS サービス (`internal/service/aws/sqs/`): service.go, handlers.go, models.go — CreateQueue, DeleteQueue, ListQueues, GetQueueUrl, GetQueueAttributes, SendMessage, ReceiveMessage, DeleteMessage, PurgeQueue, ChangeMessageVisibility の各ハンドラ実装。FIFO キュー対応（MessageDeduplicationId, MessageGroupId）。バックエンドはインメモリ実装
-- [ ] テスト: Terraform `aws_iam_role`, `aws_vpc`, `aws_subnet`, `aws_sqs_queue` の apply/destroy テスト
+- [x] AWS IAM サービス (`internal/service/aws/iam/`): service.go, handlers.go, models.go — CreateRole, DeleteRole, GetRole, ListRoles, CreatePolicy, DeletePolicy, GetPolicy, ListPolicies, AttachRolePolicy, DetachRolePolicy, CreateUser, DeleteUser, GetUser, ListUsers の各ハンドラ実装。ポリシー評価はスキップ（格納のみ）
+- [x] AWS VPC サービス (`internal/service/aws/vpc/`): service.go, handlers.go, models.go — CreateVpc, DeleteVpc, DescribeVpcs, CreateSubnet, DeleteSubnet, DescribeSubnets の各ハンドラ実装。バックエンドは Docker ネットワーク（VPC ごとに 1 ネットワーク作成）。Gateway ルーティングで EC2 Action パラメータ空間から VPC アクションを振り分ける処理を追加
+- [x] AWS SQS サービス (`internal/service/aws/sqs/`): service.go, handlers.go, models.go — CreateQueue, DeleteQueue, ListQueues, GetQueueUrl, GetQueueAttributes, SendMessage, ReceiveMessage, DeleteMessage, PurgeQueue, ChangeMessageVisibility の各ハンドラ実装。FIFO キュー対応（MessageDeduplicationId, MessageGroupId）。バックエンドはインメモリ実装
+- [x] テスト: Terraform `aws_iam_role`, `aws_vpc`, `aws_subnet`, `aws_sqs_queue` の apply/destroy テスト
 
 ---
 
