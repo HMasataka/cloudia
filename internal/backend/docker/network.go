@@ -29,6 +29,22 @@ func (c *Client) CreateNetwork(ctx context.Context, name, cidr string) (string, 
 	return resp.ID, nil
 }
 
+// EnsureNetwork creates a bridge network with the given name if it does not already exist.
+// It is idempotent: if a network with the same name already exists, it returns its ID without error.
+func (c *Client) EnsureNetwork(ctx context.Context, name string) (string, error) {
+	f := filters.NewArgs(filters.Arg("name", name))
+	existing, err := c.cli.NetworkList(ctx, network.ListOptions{Filters: f})
+	if err != nil {
+		return "", err
+	}
+	for _, n := range existing {
+		if n.Name == name {
+			return n.ID, nil
+		}
+	}
+	return c.CreateNetwork(ctx, name, "")
+}
+
 // RemoveNetwork removes the network with the given ID.
 func (c *Client) RemoveNetwork(ctx context.Context, networkID string) error {
 	return c.cli.NetworkRemove(ctx, networkID)

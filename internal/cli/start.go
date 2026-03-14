@@ -104,6 +104,10 @@ func runStart(cmd *cobra.Command, args []string) error {
 	}
 	defer dockerClient.Close()
 
+	if _, err := dockerClient.EnsureNetwork(ctx, cfg.Docker.NetworkName); err != nil {
+		return fmt.Errorf("failed to ensure docker network %q: %w", cfg.Docker.NetworkName, err)
+	}
+
 	verifiers := map[string]auth.Verifier{
 		"aws": auth.NewSigV4Verifier(cfg.Auth.AWS),
 		"gcp": auth.NewOAuthVerifier(cfg.Auth.GCP),

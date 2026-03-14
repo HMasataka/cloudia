@@ -14,6 +14,7 @@ import (
 const (
 	mysqlContainerName  = "cloudia-mysql"
 	mysqlServiceLabel   = "rdb"
+	rdbNetwork          = "cloudia"
 	healthCheckMaxTries = 60
 	healthCheckInterval = time.Second
 	defaultRootPassword = "cloudia"
@@ -83,6 +84,7 @@ func (b *RDBBackend) Init(ctx context.Context, deps service.ServiceDeps) error {
 		Ports: map[string]string{
 			b.engine.DefaultPort(): b.port,
 		},
+		Network: rdbNetwork,
 	})
 	if err != nil {
 		deps.PortAllocator.Release(hostPort)

@@ -18,6 +18,7 @@ const (
 	dynamodbContainerName = "cloudia-dynamodb"
 	dynamodbContainerPort = "8000"
 	dynamodbServiceLabel  = "dynamodb"
+	dynamodbNetwork       = "cloudia"
 
 	healthCheckInterval = time.Second
 	healthCheckMaxTries = 30
@@ -81,7 +82,8 @@ func (d *dynamodbBackend) createContainer(
 		Ports: map[string]string{
 			dynamodbContainerPort: strconv.Itoa(hostPort),
 		},
-		Cmd: []string{"-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"},
+		Network: dynamodbNetwork,
+		Cmd:     []string{"-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"},
 	})
 }
 

@@ -19,6 +19,7 @@ const (
 	redisContainerName  = "cloudia-redis"
 	redisContainerPort  = "6379"
 	redisServiceLabel   = "elasticache"
+	redisNetwork        = "cloudia"
 	healthCheckInterval = time.Second
 	healthCheckMaxTries = 30
 )
@@ -58,6 +59,7 @@ func (r *RedisBackend) Init(ctx context.Context, deps service.ServiceDeps) error
 		Ports: map[string]string{
 			redisContainerPort: r.port,
 		},
+		Network: redisNetwork,
 	})
 	if err != nil {
 		deps.PortAllocator.Release(hostPort)
