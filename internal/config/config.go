@@ -28,6 +28,8 @@ type Config struct {
 type AWSAuthConfig struct {
 	AccessKey string `mapstructure:"access_key" yaml:"access_key"`
 	SecretKey string `mapstructure:"secret_key" yaml:"secret_key"`
+	AccountID string `mapstructure:"account_id" yaml:"account_id"`
+	Region    string `mapstructure:"region"     yaml:"region"`
 }
 
 // GCPAuthConfig は GCP 認証の設定です。

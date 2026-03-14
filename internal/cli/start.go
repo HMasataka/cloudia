@@ -24,7 +24,10 @@ import (
 	"github.com/HMasataka/cloudia/internal/resource"
 	"github.com/HMasataka/cloudia/internal/service"
 	gcssvc "github.com/HMasataka/cloudia/internal/service/gcs"
+	iamsvc "github.com/HMasataka/cloudia/internal/service/iam"
 	s3svc "github.com/HMasataka/cloudia/internal/service/s3"
+	sqssvc "github.com/HMasataka/cloudia/internal/service/sqs"
+	vpcsvc "github.com/HMasataka/cloudia/internal/service/vpc"
 	"github.com/HMasataka/cloudia/internal/state"
 )
 
@@ -114,12 +117,13 @@ func runStart(cmd *cobra.Command, args []string) error {
 	registry := service.NewRegistry()
 
 	deps := service.ServiceDeps{
-		Store:         memStore,
-		LockManager:   lockManager,
-		Limiter:       limiter,
-		PortAllocator: portManager,
-		DockerClient:  dockerClient,
-		Registry:      registry,
+		Store:          memStore,
+		LockManager:    lockManager,
+		Limiter:        limiter,
+		PortAllocator:  portManager,
+		DockerClient:   dockerClient,
+		NetworkManager: dockerClient,
+		Registry:       registry,
 	}
 
 	if err := registry.Register(s3svc.NewS3Service(cfg.Auth.AWS, logger)); err != nil {
@@ -128,6 +132,18 @@ func runStart(cmd *cobra.Command, args []string) error {
 
 	if err := registry.Register(gcssvc.NewGCSService(cfg.Auth.AWS, logger)); err != nil {
 		return fmt.Errorf("failed to register gcs service: %w", err)
+	}
+
+	if err := registry.Register(iamsvc.NewIAMService(cfg.Auth.AWS, logger)); err != nil {
+		return fmt.Errorf("failed to register iam service: %w", err)
+	}
+
+	if err := registry.Register(sqssvc.NewSQSService(cfg.Auth.AWS, logger)); err != nil {
+		return fmt.Errorf("failed to register sqs service: %w", err)
+	}
+
+	if err := registry.Register(vpcsvc.NewVPCService(cfg.Auth.AWS, logger)); err != nil {
+		return fmt.Errorf("failed to register vpc service: %w", err)
 	}
 
 	if err := registry.InitAll(ctx, deps); err != nil {

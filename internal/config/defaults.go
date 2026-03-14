@@ -53,4 +53,6 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("auth.mode", "local")
 	v.SetDefault("auth.aws.access_key", "test")
 	v.SetDefault("auth.aws.secret_key", "test")
+	v.SetDefault("auth.aws.account_id", "000000000000")
+	v.SetDefault("auth.aws.region", "us-east-1")
 }

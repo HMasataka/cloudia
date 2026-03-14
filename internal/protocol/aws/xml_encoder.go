@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/xml"
 	"net/http"
+
+	"github.com/HMasataka/cloudia/internal/service"
 )
 
 // EncodeXMLResponse は任意の構造体を XML にマーシャルして HTTP レスポンスとして出力します。
@@ -19,6 +21,26 @@ func EncodeXMLResponse(w http.ResponseWriter, statusCode int, body any, namespac
 	w.WriteHeader(statusCode)
 	_, _ = w.Write([]byte(xml.Header))
 	_, _ = w.Write(data)
+}
+
+// MarshalXMLResponse は任意の構造体を XML にマーシャルして service.Response を返します。
+// XML Header (`<?xml version="1.0" encoding="UTF-8"?>`) を先頭に付与します。
+// namespace が非空の場合はルート要素に xmlns 属性を付与します。
+func MarshalXMLResponse(statusCode int, body any, namespace string) (service.Response, error) {
+	data, err := marshalWithNamespace(body, namespace)
+	if err != nil {
+		return service.Response{}, err
+	}
+
+	buf := make([]byte, 0, len(xml.Header)+len(data))
+	buf = append(buf, []byte(xml.Header)...)
+	buf = append(buf, data...)
+
+	return service.Response{
+		StatusCode:  statusCode,
+		Body:        buf,
+		ContentType: "text/xml; charset=utf-8",
+	}, nil
 }
 
 // marshalWithNamespace は body を XML にマーシャルします。

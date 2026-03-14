@@ -64,14 +64,21 @@ type ContainerRunner interface {
 	RemoveContainer(ctx context.Context, containerID string) error
 }
 
+// NetworkManager は Docker ネットワークの操作を定義します。
+type NetworkManager interface {
+	CreateNetwork(ctx context.Context, name, cidr string) (string, error)
+	RemoveNetwork(ctx context.Context, networkID string) error
+}
+
 // ServiceDeps はサービスの初期化に必要な依存関係を保持します。
 type ServiceDeps struct {
-	Store         Store
-	LockManager   LockManager
-	Limiter       Limiter
-	PortAllocator PortAllocator
-	DockerClient  ContainerRunner
-	Registry      *Registry
+	Store          Store
+	LockManager    LockManager
+	Limiter        Limiter
+	PortAllocator  PortAllocator
+	DockerClient   ContainerRunner
+	NetworkManager NetworkManager
+	Registry       *Registry
 }
 
 // Service はクラウドサービスプロバイダが実装すべきインターフェースです。

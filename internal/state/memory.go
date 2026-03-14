@@ -94,6 +94,18 @@ func matchFilter(r *models.Resource, filter Filter) bool {
 				if r.Tags == nil || r.Tags[tagKey] != v {
 					return false
 				}
+			} else if strings.HasPrefix(k, "spec:") {
+				specKey := strings.TrimPrefix(k, "spec:")
+				if r.Spec == nil {
+					return false
+				}
+				specVal, ok := r.Spec[specKey]
+				if !ok {
+					return false
+				}
+				if fmt.Sprintf("%v", specVal) != v {
+					return false
+				}
 			}
 		}
 	}

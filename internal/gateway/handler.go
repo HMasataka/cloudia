@@ -114,6 +114,8 @@ func (h *ServiceHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		req.Service = authResult.Service
 	}
 
+	req.Service = ResolveServiceName(provider, req.Service, req.Action)
+
 	svc, err := h.registry.Resolve(provider, req.Service)
 	if err != nil {
 		if errors.Is(err, models.ErrNotFound) {
