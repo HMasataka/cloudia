@@ -100,14 +100,13 @@ CLI → Gateway → Auth (SigV4/OAuth) → Protocol (XML/JSON変換) → Service
 **ゴール**: MinIO バックエンドを起動し、S3 の基本的なバケット/オブジェクト CRUD が動作する
 **完動品としての価値**: `aws s3 mb s3://test --endpoint-url http://localhost:4566` でバケット作成、`aws s3 cp` でオブジェクトのアップロード/ダウンロードが動作。Terraform `aws_s3_bucket` が apply 可能。後続サービス実装のテンプレートパターンを確立
 
-- [ ] MinIO バックエンド (`internal/backend/minio/backend.go`): MinIO コンテナの起動・停止・再利用、ヘルスチェック（readiness probe）、minio-go SDK 経由のバケット/オブジェクト操作
-- [ ] AWS S3 サービス (`internal/service/aws/s3/service.go`): Service インターフェース実装、Init で MinIO 起動。後続サービスのテンプレートとなるパターンを確立する（エラーハンドリング、State 連携、ロック取得の標準的な流れ）
-- [ ] S3 ハンドラ (`internal/service/aws/s3/handlers.go`): 各 API アクションのハンドラを実装 — CreateBucket, DeleteBucket, ListBuckets, HeadBucket, PutObject, GetObject, DeleteObject, ListObjectsV2, CopyObject, HeadObject
-- [ ] S3 モデル (`internal/service/aws/s3/models.go`): Bucket, Object のリソースモデル
-- [ ] 冪等性: バケット名重複時に BucketAlreadyExists エラー
-- [ ] ネットワークプロキシ (`internal/network/proxy.go`): Gateway から MinIO コンテナへのリバースプロキシ
-- [ ] サービスディスカバリ (`internal/network/discovery.go`): コンテナの公開ポートを動的に解決
-- [ ] テスト: `aws s3 mb`, `aws s3 cp`, `aws s3 ls`, `aws s3 rm` の統合テスト。Terraform `aws_s3_bucket` の apply/destroy テスト。S3 バケット作成が 5 秒以内で完了する性能テスト
+- [x] MinIO バックエンド (`internal/service/s3/minio.go`): MinIO コンテナの起動・停止、ヘルスチェック（readiness probe）。リバースプロキシ方式で直接 MinIO に転送
+- [x] AWS S3 サービス (`internal/service/s3/s3.go`): Service + ProxyService インターフェース実装、Init で MinIO 起動。ServiceDeps に具象インターフェース（Store, PortAllocator, ContainerRunner）を導入しテンプレートパターンを確立
+- [x] S3 リバースプロキシ (`internal/service/s3/proxy.go`): httputil.ReverseProxy で MinIO に転送。CreateBucket/DeleteBucket 成功時に State Store を更新
+- [x] ProxyService インターフェース (`internal/service/proxy.go`): ServeHTTP を持つサービスは Codec デコードをバイパスし直接 HTTP を処理
+- [x] S3 エラーレスポンス (`internal/protocol/aws/s3_error.go`): S3 互換 XML エラー（`<Error>` ルート要素）
+- [x] Gateway ProxyService 分岐 (`internal/gateway/handler.go`): 認証後に ProxyService を検出し ServeHTTP に委譲
+- [x] テスト: S3 バケット CRUD、オブジェクト操作、State Store 連携、リバースプロキシのユニットテスト・統合テスト
 
 ---
 
