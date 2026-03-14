@@ -1,0 +1,3 @@
+.belt/*
+!.belt/spec.md
+!.belt/roadmap.md
