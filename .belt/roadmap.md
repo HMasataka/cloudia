@@ -158,11 +158,11 @@ CLI → Gateway → Auth (SigV4/OAuth) → Protocol (XML/JSON変換) → Service
 **ゴール**: EC2 のセキュリティグループ、キーペア、IMDS を実装し、GCP Compute Engine を追加
 **完動品としての価値**: Terraform で EC2 セキュリティグループ付きインスタンスを作成可能。GCE インスタンスも同様に動作
 
-- [ ] EC2 セキュリティグループ: CreateSecurityGroup, DeleteSecurityGroup, DescribeSecurityGroups, AuthorizeSecurityGroupIngress, RevokeSecurityGroupIngress の各ハンドラ実装
-- [ ] EC2 キーペア: CreateKeyPair, DeleteKeyPair, DescribeKeyPairs の各ハンドラ実装
-- [ ] EC2 IMDS (Instance Metadata Service): コンテナ内から 169.254.169.254 でメタデータ取得。Gateway 内に専用 HTTP サーバーを立て、Docker ネットワーク設定でルーティング。v1/v2 両対応
-- [ ] GCP Compute Engine サービス (`internal/service/gcp/compute/`): service.go, handlers.go, models.go — instances.insert, .get, .list, .delete, .start, .stop の各ハンドラ実装。マシンタイプ→リソース制限マッピング、イメージファミリー→Docker イメージマッピング
-- [ ] テスト: Terraform `aws_security_group`, `aws_key_pair` テスト。GCE インスタンス CRUD テスト
+- [x] EC2 セキュリティグループ: CreateSecurityGroup, DeleteSecurityGroup, DescribeSecurityGroups, AuthorizeSecurityGroupIngress, RevokeSecurityGroupIngress の各ハンドラ実装
+- [x] EC2 キーペア: CreateKeyPair, DeleteKeyPair, DescribeKeyPairs の各ハンドラ実装
+- [x] EC2 IMDS (Instance Metadata Service): コンテナ内から 169.254.169.254 でメタデータ取得。Gateway 内に専用 HTTP サーバーを立て、Docker ネットワーク設定でルーティング。v1/v2 両対応
+- [x] GCP Compute Engine サービス (`internal/service/gcp/compute/`): service.go, handlers.go, models.go — instances.insert, .get, .list, .delete, .start, .stop の各ハンドラ実装。マシンタイプ→リソース制限マッピング、イメージファミリー→Docker イメージマッピング
+- [x] テスト: Terraform `aws_security_group`, `aws_key_pair` テスト。GCE インスタンス CRUD テスト
 
 ---
 
