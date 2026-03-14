@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 
 	"github.com/HMasataka/cloudia/internal/auth"
 	"github.com/HMasataka/cloudia/internal/config"
@@ -522,5 +524,80 @@ func TestIntegration_GCP_EmptyBearerToken_Returns401(t *testing.T) {
 	// Then: 401
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("expected 401, got %d", w.Code)
+	}
+}
+
+// TestServiceHandler_404Response_EmitsWarnLog verifies that when HandleRequest
+// returns a 404 response, a Warn-level log containing provider/service/action/request_id is emitted.
+func TestServiceHandler_404Response_EmitsWarnLog(t *testing.T) {
+	// Given: AWS auth passes, s3 service returns 404
+	core, logs := observer.New(zapcore.WarnLevel)
+	logger := zap.New(core)
+
+	verifiers := map[string]auth.Verifier{
+		"aws": &stubVerifier{
+			canHandle:  true,
+			authResult: auth.AuthResult{Provider: "aws", Service: "s3"},
+		},
+	}
+	registry := service.NewRegistry()
+	svc := &stubService{
+		provider: "aws",
+		name:     "s3",
+		resp: service.Response{
+			StatusCode:  http.StatusNotFound,
+			Body:        []byte("<Error><Code>NoSuchKey</Code></Error>"),
+			ContentType: "text/xml",
+		},
+	}
+	if err := registry.Register(svc); err != nil {
+		t.Fatal(err)
+	}
+
+	h := gateway.NewServiceHandler(verifiers, defaultCodecs(), registry, logger)
+
+	authHeader := "AWS4-HMAC-SHA256 Credential=test/20260315/us-east-1/s3/aws4_request, SignedHeaders=host, Signature=abc"
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("Action=GetObject&Version=2006-03-01"))
+	req.Header.Set("Authorization", authHeader)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	// When
+	h.ServeHTTP(w, req)
+
+	// Then: response is 404
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
+
+	// And: a Warn log is emitted with required fields
+	warnLogs := logs.FilterLevelExact(zapcore.WarnLevel).All()
+	if len(warnLogs) == 0 {
+		t.Fatal("expected at least one Warn log, got none")
+	}
+
+	var found bool
+	for _, entry := range warnLogs {
+		if entry.Message != "resource not found" {
+			continue
+		}
+		fields := entry.ContextMap()
+		if fields["provider"] == "" {
+			t.Error("expected 'provider' field in warn log")
+		}
+		if fields["service"] == "" {
+			t.Error("expected 'service' field in warn log")
+		}
+		if fields["action"] == "" {
+			t.Error("expected 'action' field in warn log")
+		}
+		if fields["request_id"] == "" {
+			t.Error("expected 'request_id' field in warn log")
+		}
+		found = true
+		break
+	}
+	if !found {
+		t.Errorf("expected Warn log with message 'resource not found', got: %+v", warnLogs)
 	}
 }

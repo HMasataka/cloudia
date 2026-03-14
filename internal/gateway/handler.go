@@ -148,6 +148,15 @@ func (h *ServiceHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if resp.StatusCode == http.StatusNotFound {
+		h.logger.Warn("resource not found",
+			zap.String("provider", provider),
+			zap.String("service", req.Service),
+			zap.String("action", req.Action),
+			zap.String("request_id", requestID),
+		)
+	}
+
 	if resp.Headers == nil {
 		resp.Headers = map[string]string{}
 	}
