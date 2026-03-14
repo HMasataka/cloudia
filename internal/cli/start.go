@@ -26,10 +26,12 @@ import (
 	cloudsqlsvc "github.com/HMasataka/cloudia/internal/service/cloudsql"
 	dynamodbsvc "github.com/HMasataka/cloudia/internal/service/dynamodb"
 	ec2svc "github.com/HMasataka/cloudia/internal/service/ec2"
+	ekssvc "github.com/HMasataka/cloudia/internal/service/eks"
 	lambdasvc "github.com/HMasataka/cloudia/internal/service/lambda"
 	elasticachesvc "github.com/HMasataka/cloudia/internal/service/elasticache"
 	gcesvc "github.com/HMasataka/cloudia/internal/service/gce"
 	gcssvc "github.com/HMasataka/cloudia/internal/service/gcs"
+	gkesvc "github.com/HMasataka/cloudia/internal/service/gke"
 	iamsvc "github.com/HMasataka/cloudia/internal/service/iam"
 	memorystoresvc "github.com/HMasataka/cloudia/internal/service/memorystore"
 	rdssvc "github.com/HMasataka/cloudia/internal/service/rds"
@@ -193,6 +195,14 @@ func runStart(cmd *cobra.Command, args []string) error {
 
 	if err := registry.Register(lambdasvc.NewLambdaService(cfg.Auth.AWS, logger)); err != nil {
 		return fmt.Errorf("failed to register lambda service: %w", err)
+	}
+
+	if err := registry.Register(ekssvc.NewEKSService(cfg.Auth.AWS, logger)); err != nil {
+		return fmt.Errorf("failed to register eks service: %w", err)
+	}
+
+	if err := registry.Register(gkesvc.NewGKEService(logger)); err != nil {
+		return fmt.Errorf("failed to register gke service: %w", err)
 	}
 
 	if err := registry.InitAll(ctx, deps); err != nil {
