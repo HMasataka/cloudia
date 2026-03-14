@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	protocolaws "github.com/HMasataka/cloudia/internal/protocol/aws"
 	"github.com/HMasataka/cloudia/internal/service"
 	"github.com/HMasataka/cloudia/internal/state"
 	"github.com/HMasataka/cloudia/pkg/models"
@@ -41,12 +42,7 @@ func (s *SQSService) createQueue(ctx context.Context, req service.Request) (serv
 		return errorResponse(http.StatusInternalServerError, "InternalError", err.Error())
 	}
 
-	accountID := s.cfg.AccountID
-	if accountID == "" {
-		accountID = "000000000000"
-	}
-
-	url := queueURL(accountID, r.QueueName)
+	url := queueURL(s.cfg.AccountID, r.QueueName)
 	now := time.Now()
 
 	resource := &models.Resource{
@@ -86,12 +82,7 @@ func (s *SQSService) deleteQueue(ctx context.Context, req service.Request) (serv
 		return errorResponse(http.StatusBadRequest, "InvalidParameterValue", "QueueUrl is required")
 	}
 
-	accountID := s.cfg.AccountID
-	if accountID == "" {
-		accountID = "000000000000"
-	}
-
-	queueName := queueNameFromURL(r.QueueUrl, accountID)
+	queueName := queueNameFromURL(r.QueueUrl, s.cfg.AccountID)
 	if queueName == "" {
 		return errorResponse(http.StatusBadRequest, "InvalidParameterValue", "invalid QueueUrl")
 	}
@@ -137,17 +128,7 @@ func (s *SQSService) getQueueAttributes(ctx context.Context, req service.Request
 		return errorResponse(http.StatusBadRequest, "InvalidParameterValue", "QueueUrl is required")
 	}
 
-	accountID := s.cfg.AccountID
-	if accountID == "" {
-		accountID = "000000000000"
-	}
-
-	region := s.cfg.Region
-	if region == "" {
-		region = "us-east-1"
-	}
-
-	queueName := queueNameFromURL(r.QueueUrl, accountID)
+	queueName := queueNameFromURL(r.QueueUrl, s.cfg.AccountID)
 	if queueName == "" {
 		return errorResponse(http.StatusBadRequest, "InvalidParameterValue", "invalid QueueUrl")
 	}
@@ -165,7 +146,7 @@ func (s *SQSService) getQueueAttributes(ctx context.Context, req service.Request
 		createdTimestamp = strconv.FormatInt(resource.CreatedAt.Unix(), 10)
 	}
 
-	arn := fmt.Sprintf("arn:aws:sqs:%s:%s:%s", region, accountID, queueName)
+	arn := protocolaws.FormatARN("aws", "sqs", s.cfg.Region, s.cfg.AccountID, queueName)
 
 	attrs := map[string]string{
 		"QueueArn":                     arn,
@@ -219,12 +200,7 @@ func (s *SQSService) tagQueue(ctx context.Context, req service.Request) (service
 		return errorResponse(http.StatusBadRequest, "InvalidParameterValue", "QueueUrl is required")
 	}
 
-	accountID := s.cfg.AccountID
-	if accountID == "" {
-		accountID = "000000000000"
-	}
-
-	queueName := queueNameFromURL(r.QueueUrl, accountID)
+	queueName := queueNameFromURL(r.QueueUrl, s.cfg.AccountID)
 	if queueName == "" {
 		return errorResponse(http.StatusBadRequest, "InvalidParameterValue", "invalid QueueUrl")
 	}

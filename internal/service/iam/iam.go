@@ -123,7 +123,7 @@ func errorResponse(statusCode int, code, message string) (service.Response, erro
 	}
 	resp, err := aws.MarshalXMLResponse(statusCode, errResp, iamNamespace)
 	if err != nil {
-		return service.Response{StatusCode: http.StatusInternalServerError}, nil
+		return service.Response{StatusCode: http.StatusInternalServerError}, err
 	}
 	return resp, nil
 }

@@ -4,43 +4,6 @@ import "encoding/xml"
 
 const iamNamespace = "https://iam.amazonaws.com/doc/2010-05-08/"
 
-// Role は IAM ロールの内部モデルです。
-type Role struct {
-	RoleID                   string
-	RoleName                 string
-	Arn                      string
-	Path                     string
-	AssumeRolePolicyDocument string
-	Description              string
-	CreateDate               string
-}
-
-// User は IAM ユーザーの内部モデルです。
-type User struct {
-	UserID     string
-	UserName   string
-	Arn        string
-	Path       string
-	CreateDate string
-}
-
-// Policy は IAM ポリシーの内部モデルです。
-type Policy struct {
-	PolicyID         string
-	PolicyName       string
-	Arn              string
-	Path             string
-	Description      string
-	DefaultVersionID string
-	CreateDate       string
-}
-
-// AttachedPolicy はロールにアタッチされたポリシーを表します。
-type AttachedPolicy struct {
-	PolicyArn  string
-	PolicyName string
-}
-
 // --- XML レスポンス構造体 ---
 
 // RoleResult は XML レスポンス内のロール要素です。

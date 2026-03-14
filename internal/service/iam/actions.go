@@ -56,12 +56,8 @@ func (s *IAMService) createRole(ctx context.Context, req service.Request) (servi
 
 	now := time.Now()
 	roleID := randomID("AROA")
-	accountID := s.cfg.AccountID
-	if accountID == "" {
-		accountID = "000000000000"
-	}
 	// IAM は global サービスなので region は空文字列
-	arn := protocolaws.FormatARN("aws", "iam", "", accountID, "role/"+roleName)
+	arn := protocolaws.FormatARN("aws", "iam", "", s.cfg.AccountID, "role/"+roleName)
 
 	resource := &models.Resource{
 		Kind:      kindRole,
@@ -193,12 +189,8 @@ func (s *IAMService) createUser(ctx context.Context, req service.Request) (servi
 
 	now := time.Now()
 	userID := randomID("AIDA")
-	accountID := s.cfg.AccountID
-	if accountID == "" {
-		accountID = "000000000000"
-	}
 	// IAM は global サービスなので region は空文字列
-	arn := protocolaws.FormatARN("aws", "iam", "", accountID, "user/"+userName)
+	arn := protocolaws.FormatARN("aws", "iam", "", s.cfg.AccountID, "user/"+userName)
 
 	resource := &models.Resource{
 		Kind:      kindUser,
@@ -315,12 +307,8 @@ func (s *IAMService) createPolicy(ctx context.Context, req service.Request) (ser
 
 	now := time.Now()
 	policyID := randomID("ANPA")
-	accountID := s.cfg.AccountID
-	if accountID == "" {
-		accountID = "000000000000"
-	}
 	// IAM は global サービスなので region は空文字列
-	arn := protocolaws.FormatARN("aws", "iam", "", accountID, "policy/"+policyName)
+	arn := protocolaws.FormatARN("aws", "iam", "", s.cfg.AccountID, "policy/"+policyName)
 	defaultVersionID := "v1"
 
 	resource := &models.Resource{

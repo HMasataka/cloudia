@@ -54,9 +54,3 @@ type tagQueueRequest struct {
 	Tags     map[string]string `json:"Tags"`
 }
 
-// sqsQueue は SQS キューの内部表現です。Store の Spec に保存するデータです。
-type sqsQueue struct {
-	QueueName        string
-	QueueUrl         string
-	CreatedTimestamp string
-}

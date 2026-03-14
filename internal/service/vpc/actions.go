@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -83,8 +84,11 @@ func (v *VPCService) deleteVpc(ctx context.Context, req service.Request) (servic
 	// VPC の存在確認
 	r, err := v.store.Get(ctx, kindVPC, vpcID)
 	if err != nil {
-		return errorResponse(http.StatusBadRequest, "InvalidVpcID.NotFound",
-			fmt.Sprintf("The vpc ID '%s' does not exist.", vpcID))
+		if errors.Is(err, models.ErrNotFound) {
+			return errorResponse(http.StatusBadRequest, "InvalidVpcID.NotFound",
+				fmt.Sprintf("The vpc ID '%s' does not exist.", vpcID))
+		}
+		return service.Response{StatusCode: http.StatusInternalServerError}, err
 	}
 
 	// サブネットの存在チェック
@@ -219,6 +223,12 @@ func (v *VPCService) deleteSubnet(ctx context.Context, req service.Request) (ser
 	if subnetID == "" {
 		return errorResponse(http.StatusBadRequest, "MissingParameter",
 			"The request must contain the parameter SubnetId.")
+	}
+
+	// サブネットの存在確認
+	if _, err := v.store.Get(ctx, kindSubnet, subnetID); err != nil {
+		return errorResponse(http.StatusBadRequest, "InvalidSubnetID.NotFound",
+			fmt.Sprintf("The subnet ID '%s' does not exist.", subnetID))
 	}
 
 	if err := v.store.Delete(ctx, kindSubnet, subnetID); err != nil {
