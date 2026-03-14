@@ -12,7 +12,7 @@ import (
 
 func TestServicesHandler(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
-	h := admin.NewHandler(logger)
+	h := admin.NewHandler(nil, logger)
 
 	req := httptest.NewRequest(http.MethodGet, "/admin/services", nil)
 	rec := httptest.NewRecorder()

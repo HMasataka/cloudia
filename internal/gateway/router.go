@@ -18,9 +18,10 @@ func NewRouter(adminHandler *admin.Handler, logger *zap.Logger, timeout time.Dur
 	mux.HandleFunc("GET /health", adminHandler.HealthHandler)
 	mux.HandleFunc("GET /admin/services", adminHandler.ServicesHandler)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		provider := detectProvider(r)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "unsupported operation"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "unsupported operation", "provider": provider})
 	})
 
 	var handler http.Handler = mux

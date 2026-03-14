@@ -47,7 +47,7 @@ func TestIntegration_GatewayServer(t *testing.T) {
 	defer logger.Sync()
 
 	// c. サーバー構築
-	adminHandler := admin.NewHandler(logger)
+	adminHandler := admin.NewHandler(nil, logger)
 	router := gateway.NewRouter(adminHandler, logger, cfg.Server.Timeout)
 	server := gateway.NewServer(cfg.Server, router, logger)
 

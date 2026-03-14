@@ -17,3 +17,8 @@ func (c *Client) PullImage(ctx context.Context, ref string) error {
 	_, err = io.Copy(io.Discard, reader)
 	return err
 }
+
+// ListImages returns a list of Docker images available on the local daemon.
+func (c *Client) ListImages(ctx context.Context) ([]image.Summary, error) {
+	return c.cli.ImageList(ctx, image.ListOptions{})
+}

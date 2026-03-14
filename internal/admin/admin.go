@@ -4,17 +4,19 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/HMasataka/cloudia/internal/backend/docker"
 	"go.uber.org/zap"
 )
 
 // Handler は管理 API のハンドラを保持します。
 type Handler struct {
-	logger *zap.Logger
+	dockerClient *docker.Client
+	logger       *zap.Logger
 }
 
 // NewHandler は Handler のコンストラクタです。
-func NewHandler(logger *zap.Logger) *Handler {
-	return &Handler{logger: logger}
+func NewHandler(dockerClient *docker.Client, logger *zap.Logger) *Handler {
+	return &Handler{dockerClient: dockerClient, logger: logger}
 }
 
 // ServicesHandler は登録済みサービスの一覧を返します。

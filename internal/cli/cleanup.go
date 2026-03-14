@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
@@ -32,18 +31,18 @@ func runCleanup(cmd *cobra.Command, args []string) error {
 	}
 	defer logger.Sync() //nolint:errcheck
 
-	dockerClient, err := docker.NewClient(logger)
+	dockerClient, err := docker.NewClient(cfg.Docker, logger)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Docker is not available: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("docker is not available: %w", err)
 	}
 	defer dockerClient.Close()
 
 	ctx := context.Background()
-	if err := dockerClient.CleanupOrphans(ctx); err != nil {
+	n, err := dockerClient.CleanupOrphans(ctx)
+	if err != nil {
 		return fmt.Errorf("cleanup failed: %w", err)
 	}
 
-	fmt.Println("Cleaned up all Cloudia-managed resources")
+	fmt.Printf("Cleaned up %d Cloudia-managed resource(s)\n", n)
 	return nil
 }

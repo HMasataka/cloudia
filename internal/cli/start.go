@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 
 	"github.com/HMasataka/cloudia/internal/admin"
 	"github.com/HMasataka/cloudia/internal/backend/docker"
@@ -40,6 +41,10 @@ func runStart(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
+	if logLevel != "" {
+		cfg.Logging.Level = logLevel
+	}
+
 	logger, err := logging.NewLogger(cfg.Logging)
 	if err != nil {
 		return fmt.Errorf("failed to initialize logger: %w", err)
@@ -58,29 +63,28 @@ func runStart(cmd *cobra.Command, args []string) error {
 
 	f, err := os.OpenFile(pidPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Cloudia is already running")
-		os.Exit(1)
+		return fmt.Errorf("cloudia is already running: %w", err)
 	}
 	fmt.Fprintf(f, "%d", os.Getpid())
-	f.Close()
+	if err := f.Close(); err != nil {
+		logger.Warn("failed to close pid file", zap.Error(err))
+	}
 
 	defer os.Remove(pidPath)
 
 	ctx := context.Background()
 
-	dockerClient, err := docker.NewClient(logger)
+	dockerClient, err := docker.NewClient(cfg.Docker, logger)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Docker is not available: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("docker is not available: %w", err)
 	}
 
 	if err := dockerClient.Ping(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "Docker is not available: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("docker is not available: %w", err)
 	}
 	defer dockerClient.Close()
 
-	adminHandler := admin.NewHandler(logger)
+	adminHandler := admin.NewHandler(dockerClient, logger)
 	router := gateway.NewRouter(adminHandler, logger, cfg.Server.Timeout)
 	server := gateway.NewServer(cfg.Server, router, logger)
 

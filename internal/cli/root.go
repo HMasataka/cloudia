@@ -5,6 +5,7 @@ import (
 )
 
 var configPath string
+var logLevel string
 
 var rootCmd = &cobra.Command{
 	Use:   "cloudia",
@@ -13,6 +14,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&configPath, "config", "", "config file path")
+	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "", "log level (debug, info, warn, error); overrides config")
 
 	rootCmd.AddCommand(newStartCmd())
 	rootCmd.AddCommand(newStopCmd())

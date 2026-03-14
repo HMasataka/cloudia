@@ -27,6 +27,7 @@ func runStop(cmd *cobra.Command, args []string) error {
 	data, err := os.ReadFile(pidPath)
 	if err != nil {
 		fmt.Println("Cloudia is not running")
+		os.Remove(pidPath) //nolint:errcheck
 		return nil
 	}
 
