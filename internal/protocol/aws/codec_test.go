@@ -90,13 +90,14 @@ func TestAWSCodecEncodeResponse(t *testing.T) {
 	}
 }
 
-func TestAWSCodecEncodeResponse_DefaultStatus(t *testing.T) {
+func TestAWSCodecEncodeResponse_ExplicitStatus(t *testing.T) {
 	t.Parallel()
 
 	codec := &AWSCodec{}
 	w := httptest.NewRecorder()
 	resp := service.Response{
-		Body: []byte("ok"),
+		StatusCode: http.StatusOK,
+		Body:       []byte("ok"),
 	}
 	codec.EncodeResponse(w, resp)
 
@@ -112,8 +113,8 @@ func TestAWSCodecEncodeError(t *testing.T) {
 	w := httptest.NewRecorder()
 	codec.EncodeError(w, errTest("something went wrong"), "req-123")
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("StatusCode = %d, want %d", w.Code, http.StatusBadRequest)
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("StatusCode = %d, want %d", w.Code, http.StatusInternalServerError)
 	}
 	body := w.Body.String()
 	if !strings.Contains(body, "InternalError") {

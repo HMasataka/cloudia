@@ -19,7 +19,8 @@ var ErrEmptyBody = errors.New("empty request body")
 // service.Request に変換します。
 // service.Request の Service フィールドはこの関数では設定しません（Codec が設定します）。
 func DecodeQueryRequest(r *http.Request) (service.Request, error) {
-	body, err := io.ReadAll(r.Body)
+	const maxBodySize = 10 * 1024 * 1024 // 10 MB
+	body, err := io.ReadAll(io.LimitReader(r.Body, maxBodySize))
 	if err != nil {
 		return service.Request{}, err
 	}
@@ -40,7 +41,7 @@ func DecodeQueryRequest(r *http.Request) (service.Request, error) {
 
 	params := make(map[string]string)
 	for key, vals := range values {
-		if key == "Action" || key == "Version" {
+		if key == "Action" {
 			continue
 		}
 		if len(vals) > 0 {
@@ -48,14 +49,8 @@ func DecodeQueryRequest(r *http.Request) (service.Request, error) {
 		}
 	}
 
-	req := service.Request{
+	return service.Request{
 		Action: action,
 		Params: params,
-	}
-
-	if v := values.Get("Version"); v != "" {
-		req.Params["Version"] = v
-	}
-
-	return req, nil
+	}, nil
 }

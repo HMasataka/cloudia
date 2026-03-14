@@ -41,5 +41,5 @@ func WriteError(w http.ResponseWriter, statusCode int, message string) {
 		},
 	}
 
-	EncodeJSONResponse(w, statusCode, resp)
+	_ = EncodeJSONResponse(w, statusCode, resp)
 }

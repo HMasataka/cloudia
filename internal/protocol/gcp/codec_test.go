@@ -90,14 +90,14 @@ func TestGCPCodecEncodeError(t *testing.T) {
 	w := httptest.NewRecorder()
 	codec.EncodeError(w, fmt.Errorf("not found"), "ignored-request-id")
 
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("StatusCode = %d, want %d", w.Code, http.StatusInternalServerError)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("StatusCode = %d, want %d", w.Code, http.StatusBadRequest)
 	}
 	body := w.Body.String()
 	if !strings.Contains(body, "not found") {
 		t.Errorf("body does not contain error message: %s", body)
 	}
-	if !strings.Contains(body, "UNKNOWN") {
+	if !strings.Contains(body, "INVALID_ARGUMENT") {
 		t.Errorf("body does not contain grpc status: %s", body)
 	}
 }

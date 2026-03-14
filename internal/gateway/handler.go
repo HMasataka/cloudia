@@ -120,14 +120,14 @@ func (h *ServiceHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // encodeAuthError は認証エラーをプロバイダ別フォーマットで返します。
-func (h *ServiceHandler) encodeAuthError(w http.ResponseWriter, provider string, err error, requestID string) {
+func (h *ServiceHandler) encodeAuthError(w http.ResponseWriter, provider string, _ error, requestID string) {
 	switch provider {
 	case "aws":
-		awsprotocol.WriteError(w, http.StatusForbidden, "SignatureDoesNotMatch", err.Error(), requestID)
+		awsprotocol.WriteError(w, http.StatusForbidden, "SignatureDoesNotMatch", "the request signature we calculated does not match the signature you provided", requestID)
 	case "gcp":
-		gcpprotocol.WriteError(w, http.StatusUnauthorized, err.Error())
+		gcpprotocol.WriteError(w, http.StatusUnauthorized, "request had invalid authentication credentials")
 	default:
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		http.Error(w, "authentication failed", http.StatusUnauthorized)
 	}
 }
 

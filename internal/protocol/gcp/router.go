@@ -62,8 +62,7 @@ func ResolveGCPService(path string) (service string, resourcePath string, err er
 				return kv.service, rest, nil
 			}
 		}
-		// デフォルトは gke
-		return "gke", rest, nil
+		return "", "", fmt.Errorf("gcp router: unknown service under /v1/projects/ path %q", path)
 	}
 
 	return "", "", fmt.Errorf("gcp router: unknown service path %q", path)

@@ -73,19 +73,15 @@ func TestSigV4Verifier_Verify_Success(t *testing.T) {
 	}
 }
 
-func TestSigV4Verifier_Verify_DefaultAccessKey(t *testing.T) {
-	// AccessKey が空のとき "test" がデフォルト値として使われる
+func TestSigV4Verifier_Verify_EmptyAccessKeyConfig(t *testing.T) {
 	v := NewSigV4Verifier(config.AWSAuthConfig{})
 
 	authHeader := "AWS4-HMAC-SHA256 Credential=test/20260315/ap-northeast-1/ec2/aws4_request, SignedHeaders=host, Signature=sig"
 	r := makeRequest(authHeader)
 
-	result, err := v.Verify(r)
-	if err != nil {
-		t.Fatalf("Verify() unexpected error: %v", err)
-	}
-	if result.Region != "ap-northeast-1" {
-		t.Errorf("Region = %q, want %q", result.Region, "ap-northeast-1")
+	_, err := v.Verify(r)
+	if err == nil {
+		t.Fatal("Verify() expected error for unconfigured AccessKey, got nil")
 	}
 }
 

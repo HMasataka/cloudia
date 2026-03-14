@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -40,11 +41,7 @@ func (c *AWSCodec) EncodeResponse(w http.ResponseWriter, resp service.Response) 
 	if resp.ContentType != "" {
 		w.Header().Set("Content-Type", resp.ContentType)
 	}
-	statusCode := resp.StatusCode
-	if statusCode == 0 {
-		statusCode = http.StatusOK
-	}
-	w.WriteHeader(statusCode)
+	w.WriteHeader(resp.StatusCode)
 	if len(resp.Body) > 0 {
 		_, _ = w.Write(resp.Body)
 	}
@@ -52,5 +49,15 @@ func (c *AWSCodec) EncodeResponse(w http.ResponseWriter, resp service.Response) 
 
 // EncodeError はエラーを AWS 互換 XML フォーマットで HTTP レスポンスとして出力します。
 func (c *AWSCodec) EncodeError(w http.ResponseWriter, err error, requestID string) {
-	WriteError(w, http.StatusBadRequest, "InternalError", err.Error(), requestID)
+	code, status := classifyAWSError(err)
+	WriteError(w, status, code, err.Error(), requestID)
+}
+
+func classifyAWSError(err error) (string, int) {
+	switch {
+	case errors.Is(err, ErrMissingAction), errors.Is(err, ErrEmptyBody):
+		return "MissingAction", http.StatusBadRequest
+	default:
+		return "InternalError", http.StatusInternalServerError
+	}
 }

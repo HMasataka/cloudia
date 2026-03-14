@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"crypto/subtle"
 	"fmt"
 	"net/http"
 	"strings"
@@ -8,27 +9,24 @@ import (
 	"github.com/HMasataka/cloudia/internal/config"
 )
 
-const (
-	sigV4Prefix        = "AWS4-HMAC-SHA256"
-	defaultAccessKey   = "test"
-)
+const sigV4Prefix = "AWS4-HMAC-SHA256"
 
-// SigV4Verifier は AWS Signature Version 4 を検証する Verifier 実装です。
+// SigV4Verifier validates AWS Signature Version 4 Authorization headers.
 type SigV4Verifier struct {
 	cfg config.AWSAuthConfig
 }
 
-// NewSigV4Verifier は SigV4Verifier を生成します。
+// NewSigV4Verifier creates a new SigV4Verifier.
 func NewSigV4Verifier(cfg config.AWSAuthConfig) *SigV4Verifier {
 	return &SigV4Verifier{cfg: cfg}
 }
 
-// CanHandle は Authorization ヘッダーが AWS4-HMAC-SHA256 で始まる場合に true を返します。
+// CanHandle returns true for AWS4-HMAC-SHA256 Authorization headers.
 func (v *SigV4Verifier) CanHandle(r *http.Request) bool {
 	return strings.HasPrefix(r.Header.Get("Authorization"), sigV4Prefix)
 }
 
-// sigV4Components は Authorization ヘッダーから解析した各コンポーネントを保持します。
+// sigV4Components holds parsed Authorization header components.
 type sigV4Components struct {
 	Algorithm     string
 	AccessKey     string
@@ -39,7 +37,7 @@ type sigV4Components struct {
 	Signature     string
 }
 
-// parseAuthorization は Authorization ヘッダーを解析して sigV4Components を返します。
+// parseAuthorization parses an AWS4-HMAC-SHA256 Authorization header.
 func parseAuthorization(authHeader string) (sigV4Components, error) {
 	// 例: AWS4-HMAC-SHA256 Credential=access-key/20260315/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-date, Signature=abc123
 	if !strings.HasPrefix(authHeader, sigV4Prefix) {
@@ -94,7 +92,7 @@ func parseAuthorization(authHeader string) (sigV4Components, error) {
 	}, nil
 }
 
-// Verify はリクエストを検証し、AuthResult を返します。
+// Verify validates the request and returns AuthResult.
 func (v *SigV4Verifier) Verify(r *http.Request) (AuthResult, error) {
 	authHeader := r.Header.Get("Authorization")
 	components, err := parseAuthorization(authHeader)
@@ -102,12 +100,11 @@ func (v *SigV4Verifier) Verify(r *http.Request) (AuthResult, error) {
 		return AuthResult{}, err
 	}
 
-	expectedAccessKey := v.cfg.AccessKey
-	if expectedAccessKey == "" {
-		expectedAccessKey = defaultAccessKey
+	if v.cfg.AccessKey == "" {
+		return AuthResult{}, fmt.Errorf("auth: AccessKey is not configured")
 	}
 
-	if components.AccessKey != expectedAccessKey {
+	if subtle.ConstantTimeCompare([]byte(components.AccessKey), []byte(v.cfg.AccessKey)) != 1 {
 		return AuthResult{}, fmt.Errorf("auth: SignatureDoesNotMatch: access key %q does not match", components.AccessKey)
 	}
 

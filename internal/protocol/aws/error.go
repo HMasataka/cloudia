@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-const errorResponseNamespace = "https://iam.amazonaws.com/doc/2010-05-08/"
+const DefaultErrorNamespace = "https://sts.amazonaws.com/doc/2011-06-15/"
 
 // ErrorResponse は AWS 互換の XML エラーレスポンス構造体です。
 type ErrorResponse struct {
@@ -29,5 +29,5 @@ func WriteError(w http.ResponseWriter, statusCode int, code string, message stri
 		},
 		RequestID: requestID,
 	}
-	EncodeXMLResponse(w, statusCode, resp, errorResponseNamespace)
+	EncodeXMLResponse(w, statusCode, resp, DefaultErrorNamespace)
 }

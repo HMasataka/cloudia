@@ -20,27 +20,22 @@ var ErrUnknownProvider = errors.New("unknown provider")
 func DetectProvider(r *http.Request) (string, error) {
 	authHeader := r.Header.Get("Authorization")
 
-	// 1. AWS Signature Version 4
 	if strings.HasPrefix(authHeader, "AWS4-HMAC-SHA256 ") {
 		return "aws", nil
 	}
 
-	// 2. X-Amz-Target ヘッダー
 	if r.Header.Get("X-Amz-Target") != "" {
 		return "aws", nil
 	}
 
-	// 3. X-Amz-Date ヘッダー
 	if r.Header.Get("X-Amz-Date") != "" {
 		return "aws", nil
 	}
 
-	// 4. Bearer トークン (GCP OAuth2)
 	if strings.HasPrefix(authHeader, "Bearer ") {
 		return "gcp", nil
 	}
 
-	// 5. GCP API パスプレフィックス
 	if isGCPPath(r.URL.Path) {
 		return "gcp", nil
 	}

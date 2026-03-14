@@ -45,10 +45,9 @@ func TestResolveGCPService(t *testing.T) {
 			wantResourcePath: "my-proj/locations/us-central1/instances/my-cache",
 		},
 		{
-			name:             "v1/projects default gke",
-			path:             "/v1/projects/my-proj/something",
-			wantService:      "gke",
-			wantResourcePath: "my-proj/something",
+			name:    "v1/projects unknown service",
+			path:    "/v1/projects/my-proj/something",
+			wantErr: true,
 		},
 		{
 			name:    "unknown path",

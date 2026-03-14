@@ -39,7 +39,8 @@ func DecodeJSONRequest(r *http.Request) (service.Request, error) {
 		return service.Request{}, fmt.Errorf("aws json: unknown target prefix %q", prefix)
 	}
 
-	body, err := io.ReadAll(r.Body)
+	const maxBodySize = 10 * 1024 * 1024 // 10 MB
+	body, err := io.ReadAll(io.LimitReader(r.Body, maxBodySize))
 	if err != nil {
 		return service.Request{}, fmt.Errorf("aws json: failed to read request body: %w", err)
 	}

@@ -38,11 +38,7 @@ func (c *GCPCodec) EncodeResponse(w http.ResponseWriter, resp service.Response) 
 	if resp.ContentType != "" {
 		w.Header().Set("Content-Type", resp.ContentType)
 	}
-	statusCode := resp.StatusCode
-	if statusCode == 0 {
-		statusCode = http.StatusOK
-	}
-	w.WriteHeader(statusCode)
+	w.WriteHeader(resp.StatusCode)
 	if len(resp.Body) > 0 {
 		_, _ = w.Write(resp.Body)
 	}
@@ -50,5 +46,5 @@ func (c *GCPCodec) EncodeResponse(w http.ResponseWriter, resp service.Response) 
 
 // EncodeError はエラーを GCP 互換 JSON フォーマットで HTTP レスポンスとして出力します。
 func (c *GCPCodec) EncodeError(w http.ResponseWriter, err error, _ string) {
-	WriteError(w, http.StatusInternalServerError, err.Error())
+	WriteError(w, http.StatusBadRequest, err.Error())
 }
