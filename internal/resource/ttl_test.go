@@ -41,7 +41,7 @@ func TestTTLManager_ExpiredResourceEventuallyTerminated(t *testing.T) {
 	cleaner := NewCleaner(store, docker, zap.NewNop())
 
 	shortInterval := 10 * time.Millisecond
-	manager := NewTTLManager(store, cleaner, shortInterval, zap.NewNop())
+	manager := NewTTLManager(store, cleaner, shortInterval, true, zap.NewNop())
 
 	ctx2, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
@@ -77,7 +77,7 @@ func TestTTLManager_NonExpiredResourceUnchanged(t *testing.T) {
 	cleaner := NewCleaner(store, docker, zap.NewNop())
 
 	shortInterval := 10 * time.Millisecond
-	manager := NewTTLManager(store, cleaner, shortInterval, zap.NewNop())
+	manager := NewTTLManager(store, cleaner, shortInterval, true, zap.NewNop())
 
 	ctx2, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
@@ -106,7 +106,7 @@ func TestTTLManager_NilTTLResourcePersists(t *testing.T) {
 	cleaner := NewCleaner(store, docker, zap.NewNop())
 
 	shortInterval := 10 * time.Millisecond
-	manager := NewTTLManager(store, cleaner, shortInterval, zap.NewNop())
+	manager := NewTTLManager(store, cleaner, shortInterval, true, zap.NewNop())
 
 	ctx2, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
@@ -136,7 +136,7 @@ func TestTTLManager_ExpiredResourceEventuallyCleanedUp(t *testing.T) {
 	cleaner := NewCleaner(store, docker, zap.NewNop())
 
 	shortInterval := 10 * time.Millisecond
-	manager := NewTTLManager(store, cleaner, shortInterval, zap.NewNop())
+	manager := NewTTLManager(store, cleaner, shortInterval, true, zap.NewNop())
 
 	ctx2, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
@@ -155,7 +155,7 @@ func TestTTLManager_StartStopsOnContextCancel(t *testing.T) {
 	store := state.NewMemoryStore()
 	docker := &mockDockerRemover{}
 	cleaner := NewCleaner(store, docker, zap.NewNop())
-	manager := NewTTLManager(store, cleaner, 10*time.Millisecond, zap.NewNop())
+	manager := NewTTLManager(store, cleaner, 10*time.Millisecond, true, zap.NewNop())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	manager.Start(ctx)

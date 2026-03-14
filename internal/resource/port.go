@@ -46,8 +46,11 @@ func (m *PortManager) Allocate(preferred int, resourceID string) (int, error) {
 		return preferred, nil
 	}
 
-	// preferred+1 から線形探索
+	// preferred+1 から線形探索（preferred が rangeStart 未満の場合は rangeStart から開始）
 	start := preferred + 1
+	if start < m.rangeStart {
+		start = m.rangeStart
+	}
 	for port := start; port <= m.rangeEnd; port++ {
 		if _, used := m.ports[port]; !used {
 			m.assign(port, resourceID)

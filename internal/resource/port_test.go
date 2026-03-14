@@ -130,3 +130,15 @@ func TestRelease_UnknownPort(t *testing.T) {
 	// 割り当てていないポートの Release はパニックしない
 	pm.Release(10000)
 }
+
+func TestAllocate_PreferredBelowRangeStart(t *testing.T) {
+	pm := newTestPortManager() // rangeStart=10000, rangeEnd=10004
+	// preferred < rangeStart の場合、rangeStart から探索して範囲内のポートを返すこと
+	port, err := pm.Allocate(9000, "res-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if port < 10000 || port > 10004 {
+		t.Errorf("expected port in [10000, 10004], got %d", port)
+	}
+}

@@ -21,18 +21,8 @@ type TTLManager struct {
 }
 
 // NewTTLManager は TTLManager を生成します。
-func NewTTLManager(store state.Store, cleaner *Cleaner, interval time.Duration, logger *zap.Logger) *TTLManager {
-	return &TTLManager{
-		store:    store,
-		cleaner:  cleaner,
-		interval: interval,
-		enabled:  true,
-		logger:   logger,
-	}
-}
-
-// NewTTLManagerWithEnabled は enabled フラグ付きで TTLManager を生成します。
-func NewTTLManagerWithEnabled(store state.Store, cleaner *Cleaner, interval time.Duration, enabled bool, logger *zap.Logger) *TTLManager {
+// enabled が false の場合、Start を呼んでも goroutine を起動しません。
+func NewTTLManager(store state.Store, cleaner *Cleaner, interval time.Duration, enabled bool, logger *zap.Logger) *TTLManager {
 	return &TTLManager{
 		store:    store,
 		cleaner:  cleaner,
