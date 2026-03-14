@@ -1,6 +1,12 @@
 package service
 
-import "context"
+import (
+	"context"
+
+	"github.com/HMasataka/cloudia/internal/backend/docker"
+	"github.com/HMasataka/cloudia/internal/state"
+	"github.com/HMasataka/cloudia/pkg/models"
+)
 
 // HealthStatus はサービスのヘルスチェック結果を表します。
 type HealthStatus struct {
@@ -26,20 +32,45 @@ type Response struct {
 	Headers     map[string]string
 }
 
+// Store はリソースの永続化操作を定義します。
+type Store interface {
+	Get(ctx context.Context, kind, id string) (*models.Resource, error)
+	List(ctx context.Context, kind string, filter state.Filter) ([]*models.Resource, error)
+	Put(ctx context.Context, resource *models.Resource) error
+	Delete(ctx context.Context, kind, id string) error
+}
+
+// LockManager はリソースごとの排他ロックを定義します。
+type LockManager interface {
+	Lock(ctx context.Context, kind, id string) error
+	Unlock(kind, id string)
+}
+
+// Limiter はリソース制限チェックを定義します。
+type Limiter interface {
+	CheckContainerLimit(ctx context.Context) error
+}
+
+// PortAllocator はポートの割り当てと解放を定義します。
+type PortAllocator interface {
+	Allocate(preferred int, resourceID string) (int, error)
+	Release(port int)
+}
+
+// ContainerRunner は Docker コンテナの操作を定義します。
+type ContainerRunner interface {
+	RunContainer(ctx context.Context, cfg docker.ContainerConfig) (string, error)
+	StopContainer(ctx context.Context, containerID string, timeout *int) error
+	RemoveContainer(ctx context.Context, containerID string) error
+}
+
 // ServiceDeps はサービスの初期化に必要な依存関係を保持します。
-// 循環依存を避けるため、各フィールドは any で受けます。
-// 後続マイルストーンで具体的な型に置き換えます。
 type ServiceDeps struct {
-	// Store は state.Store を実装した値を受けます。
-	Store any
-	// LockManager は state.LockManager を受けます。
-	LockManager any
-	// Limiter は resource.Limiter を受けます。
-	Limiter any
-	// PortManager は resource.PortManager を受けます。
-	PortManager any
-	// DockerClient は docker.Client を受けます。
-	DockerClient any
+	Store         Store
+	LockManager   LockManager
+	Limiter       Limiter
+	PortAllocator PortAllocator
+	DockerClient  ContainerRunner
 }
 
 // Service はクラウドサービスプロバイダが実装すべきインターフェースです。

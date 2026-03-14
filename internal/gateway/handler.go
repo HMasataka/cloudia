@@ -85,6 +85,23 @@ func (h *ServiceHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if authResult.Service != "" {
+		svc, err := h.registry.Resolve(provider, authResult.Service)
+		if err != nil {
+			if errors.Is(err, models.ErrNotFound) {
+				h.encodeNotImplemented(w, provider, authResult.Service, requestID)
+				return
+			}
+			codec.EncodeError(w, err, requestID)
+			return
+		}
+		if proxySvc, ok := svc.(service.ProxyService); ok {
+			w.Header().Set("X-Request-Id", requestID)
+			proxySvc.ServeHTTP(w, r)
+			return
+		}
+	}
+
 	req, err := codec.DecodeRequest(r)
 	if err != nil {
 		codec.EncodeError(w, err, requestID)

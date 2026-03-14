@@ -21,7 +21,10 @@ import (
 	"github.com/HMasataka/cloudia/internal/protocol"
 	awsprotocol "github.com/HMasataka/cloudia/internal/protocol/aws"
 	gcpprotocol "github.com/HMasataka/cloudia/internal/protocol/gcp"
+	"github.com/HMasataka/cloudia/internal/resource"
 	"github.com/HMasataka/cloudia/internal/service"
+	s3svc "github.com/HMasataka/cloudia/internal/service/s3"
+	"github.com/HMasataka/cloudia/internal/state"
 )
 
 func newStartCmd() *cobra.Command {
@@ -99,7 +102,31 @@ func runStart(cmd *cobra.Command, args []string) error {
 		"gcp": &gcpprotocol.GCPCodec{},
 	}
 
+	memStore := state.NewMemoryStore()
+	lockManager := state.NewLockManager(cfg.State.LockTimeout)
+	limiter, err := resource.NewLimiter(memStore, cfg.Limits)
+	if err != nil {
+		return fmt.Errorf("failed to create limiter: %w", err)
+	}
+	portManager := resource.NewPortManager(cfg.Ports)
+
+	deps := service.ServiceDeps{
+		Store:         memStore,
+		LockManager:   lockManager,
+		Limiter:       limiter,
+		PortAllocator: portManager,
+		DockerClient:  dockerClient,
+	}
+
 	registry := service.NewRegistry()
+
+	if err := registry.Register(s3svc.NewS3Service(cfg.Auth.AWS)); err != nil {
+		return fmt.Errorf("failed to register s3 service: %w", err)
+	}
+
+	if err := registry.InitAll(ctx, deps); err != nil {
+		return fmt.Errorf("failed to initialize services: %w", err)
+	}
 
 	serviceHandler := gateway.NewServiceHandler(verifiers, codecs, registry, logger)
 	adminHandler := admin.NewHandler(dockerClient, logger)
@@ -117,6 +144,10 @@ func runStart(cmd *cobra.Command, args []string) error {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
+
+	if err := registry.ShutdownAll(shutdownCtx); err != nil {
+		logger.Warn("service shutdown error", zap.Error(err))
+	}
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("server shutdown error: %w", err)

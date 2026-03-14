@@ -2,11 +2,13 @@ package docker
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/go-connections/nat"
 )
 
 // ContainerConfig holds configuration for creating and running a container.
@@ -47,14 +49,21 @@ func (c *Client) RunContainer(ctx context.Context, cfg ContainerConfig) (string,
 		env = append(env, k+"="+v)
 	}
 
+	exposedPorts, portBindings, err := buildPortMappings(cfg.Ports)
+	if err != nil {
+		return "", err
+	}
+
 	containerCfg := &container.Config{
-		Image:  cfg.Image,
-		Labels: labels,
-		Env:    env,
-		Cmd:    cfg.Cmd,
+		Image:        cfg.Image,
+		Labels:       labels,
+		Env:          env,
+		Cmd:          cfg.Cmd,
+		ExposedPorts: exposedPorts,
 	}
 
 	hostCfg := &container.HostConfig{
+		PortBindings: portBindings,
 		Resources: container.Resources{
 			NanoCPUs: cfg.CPULimit,
 			Memory:   cfg.MemoryLimit,
@@ -76,6 +85,24 @@ func (c *Client) RunContainer(ctx context.Context, cfg ContainerConfig) (string,
 	return resp.ID, nil
 }
 
+// buildPortMappings converts a Ports map ("containerPort/proto" -> "hostPort") into
+// Docker's ExposedPorts and PortBindings structures.
+func buildPortMappings(ports map[string]string) (nat.PortSet, nat.PortMap, error) {
+	exposedPorts := make(nat.PortSet, len(ports))
+	portBindings := make(nat.PortMap, len(ports))
+
+	for containerPort, hostPort := range ports {
+		p, err := nat.NewPort("tcp", containerPort)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid container port %q: %w", containerPort, err)
+		}
+		exposedPorts[p] = struct{}{}
+		portBindings[p] = []nat.PortBinding{{HostIP: "0.0.0.0", HostPort: hostPort}}
+	}
+
+	return exposedPorts, portBindings, nil
+}
+
 // StopContainer stops a running container with an optional timeout.
 func (c *Client) StopContainer(ctx context.Context, containerID string, timeout *int) error {
 	return c.cli.ContainerStop(ctx, containerID, container.StopOptions{Timeout: timeout})
@@ -93,4 +120,24 @@ func (c *Client) ListManagedContainers(ctx context.Context) ([]container.Summary
 		All:     true,
 		Filters: f,
 	})
+}
+
+// FindContainerByServiceLabel returns the first running container matching the given service label value.
+// Returns nil, nil when no matching container is found.
+func (c *Client) FindContainerByServiceLabel(ctx context.Context, serviceValue string) (*container.Summary, error) {
+	f := filters.NewArgs(
+		filters.Arg("label", LabelManaged+"=true"),
+		filters.Arg("label", LabelService+"="+serviceValue),
+	)
+	containers, err := c.cli.ContainerList(ctx, container.ListOptions{
+		All:     false,
+		Filters: f,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(containers) == 0 {
+		return nil, nil
+	}
+	return &containers[0], nil
 }

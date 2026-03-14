@@ -283,6 +283,109 @@ func TestServiceHandler_HealthEndpoint_NoAuth(t *testing.T) {
 	}
 }
 
+// stubProxyService は ProxyService を実装するスタブです。
+type stubProxyService struct {
+	stubService
+	serveHTTPCalled bool
+	statusCode      int
+}
+
+func (s *stubProxyService) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
+	s.serveHTTPCalled = true
+	w.WriteHeader(s.statusCode)
+}
+
+func TestServiceHandler_ProxyService_ServesHTTPDirectly(t *testing.T) {
+	// Given: AWS auth passes with service "s3", registered service implements ProxyService
+	verifiers := map[string]auth.Verifier{
+		"aws": &stubVerifier{
+			canHandle:  true,
+			authResult: auth.AuthResult{Provider: "aws", Service: "s3"},
+		},
+	}
+	registry := service.NewRegistry()
+	proxySvc := &stubProxyService{
+		stubService: stubService{provider: "aws", name: "s3"},
+		statusCode:  http.StatusOK,
+	}
+	if err := registry.Register(proxySvc); err != nil {
+		t.Fatal(err)
+	}
+
+	h := newTestHandler(verifiers, defaultCodecs(), registry)
+
+	authHeader := "AWS4-HMAC-SHA256 Credential=test/20260315/us-east-1/s3/aws4_request, SignedHeaders=host, Signature=abc"
+	req := httptest.NewRequest(http.MethodPut, "/bucket/key", strings.NewReader("body"))
+	req.Header.Set("Authorization", authHeader)
+	w := httptest.NewRecorder()
+
+	// When
+	h.ServeHTTP(w, req)
+
+	// Then: ProxyService.ServeHTTP is called and X-Request-Id header is set
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+	if !proxySvc.serveHTTPCalled {
+		t.Error("expected ProxyService.ServeHTTP to be called")
+	}
+	if xRequestID := w.Header().Get("X-Request-Id"); xRequestID == "" {
+		t.Error("expected X-Request-Id header to be set, got empty string")
+	}
+}
+
+func TestServiceHandler_ProxyService_NotFound_Returns501(t *testing.T) {
+	// Given: AWS auth passes with service "s3", no service registered
+	verifiers := map[string]auth.Verifier{
+		"aws": &stubVerifier{
+			canHandle:  true,
+			authResult: auth.AuthResult{Provider: "aws", Service: "s3"},
+		},
+	}
+	registry := service.NewRegistry()
+	h := newTestHandler(verifiers, defaultCodecs(), registry)
+
+	authHeader := "AWS4-HMAC-SHA256 Credential=test/20260315/us-east-1/s3/aws4_request, SignedHeaders=host, Signature=abc"
+	req := httptest.NewRequest(http.MethodPut, "/bucket/key", nil)
+	req.Header.Set("Authorization", authHeader)
+	w := httptest.NewRecorder()
+
+	// When
+	h.ServeHTTP(w, req)
+
+	// Then: 501 with UnsupportedOperation
+	if w.Code != http.StatusNotImplemented {
+		t.Errorf("expected 501, got %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "UnsupportedOperation") {
+		t.Errorf("expected UnsupportedOperation in body, got: %s", w.Body.String())
+	}
+}
+
+func TestServiceHandler_EmptyAuthService_UsesCodecPath(t *testing.T) {
+	// Given: GCP auth passes with empty service (Query/JSON protocol path)
+	verifiers := map[string]auth.Verifier{
+		"gcp": &stubVerifier{
+			canHandle:  true,
+			authResult: auth.AuthResult{Provider: "gcp"},
+		},
+	}
+	registry := service.NewRegistry()
+	h := newTestHandler(verifiers, defaultCodecs(), registry)
+
+	req := httptest.NewRequest(http.MethodGet, "/storage/v1/buckets", nil)
+	req.Header.Set("Authorization", "Bearer sometoken")
+	w := httptest.NewRecorder()
+
+	// When
+	h.ServeHTTP(w, req)
+
+	// Then: falls through to codec path, returns 501 (service not found via codec decode)
+	if w.Code != http.StatusNotImplemented {
+		t.Errorf("expected 501, got %d", w.Code)
+	}
+}
+
 func defaultRealVerifiers() map[string]auth.Verifier {
 	return map[string]auth.Verifier{
 		"aws": auth.NewSigV4Verifier(config.AWSAuthConfig{AccessKey: "test"}),
