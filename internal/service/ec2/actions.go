@@ -73,18 +73,16 @@ func (e *EC2Service) stopInstances(ctx context.Context, req service.Request) (se
 		}
 
 		containerID := r.ContainerID
-		if containerID == "" {
-			containerID, _ = r.Spec["ContainerID"].(string)
-		}
 		if containerID != "" {
 			if err := e.docker.PauseContainer(ctx, containerID); err != nil {
 				return errorResponse(http.StatusInternalServerError, "InternalError",
-					fmt.Sprintf("Failed to pause container for instance '%s': %v", id, err))
+					"internal error")
 			}
 		}
 
 		r.Status = stateNameStopped
 		r.Spec["StateCode"] = stateCodeStopped
+		r.Spec["StateName"] = stateNameStopped
 		r.UpdatedAt = time.Now().UTC()
 
 		if err := e.store.Put(ctx, r); err != nil {
@@ -145,18 +143,16 @@ func (e *EC2Service) startInstances(ctx context.Context, req service.Request) (s
 		}
 
 		containerID := r.ContainerID
-		if containerID == "" {
-			containerID, _ = r.Spec["ContainerID"].(string)
-		}
 		if containerID != "" {
 			if err := e.docker.UnpauseContainer(ctx, containerID); err != nil {
 				return errorResponse(http.StatusInternalServerError, "InternalError",
-					fmt.Sprintf("Failed to unpause container for instance '%s': %v", id, err))
+					"internal error")
 			}
 		}
 
 		r.Status = stateNameRunning
 		r.Spec["StateCode"] = stateCodeRunning
+		r.Spec["StateName"] = stateNameRunning
 		r.UpdatedAt = time.Now().UTC()
 
 		if err := e.store.Put(ctx, r); err != nil {
@@ -254,13 +250,22 @@ func (e *EC2Service) runInstances(ctx context.Context, req service.Request) (ser
 		}
 	}
 	if maxCount > 10 {
-		maxCount = 10
+		return errorResponse(http.StatusBadRequest, "InvalidParameterValue",
+			"The value for MaxCount exceeds the limit of 10.")
 	}
 	if minCount < 1 {
 		minCount = 1
 	}
 	if maxCount < minCount {
 		maxCount = minCount
+	}
+
+	// コンテナ数制限チェック
+	if e.limiter != nil {
+		if err := e.limiter.CheckContainerLimit(ctx); err != nil {
+			return errorResponse(http.StatusServiceUnavailable, "InsufficientInstanceCapacity",
+				"There is no capacity available for the requested instance type.")
+		}
 	}
 
 	// Docker イメージを解決
@@ -289,8 +294,12 @@ func (e *EC2Service) runInstances(ctx context.Context, req service.Request) (ser
 	}
 
 	// maxCount 分のインスタンスを起動
+	type launchedEntry struct {
+		instanceID  string
+		containerID string
+	}
 	var launched []InstanceItem
-	var containerIDs []string
+	var launchedEntries []launchedEntry
 
 	for i := 0; i < maxCount; i++ {
 		hex17, hexErr := generateHex17()
@@ -320,7 +329,6 @@ func (e *EC2Service) runInstances(ctx context.Context, req service.Request) (ser
 			)
 			break
 		}
-		containerIDs = append(containerIDs, containerID)
 
 		// IP アドレスを取得
 		info, inspectErr := e.docker.InspectContainer(ctx, containerID)
@@ -359,25 +367,45 @@ func (e *EC2Service) runInstances(ctx context.Context, req service.Request) (ser
 				zap.String("instance_id", instanceID),
 				zap.Error(putErr),
 			)
+			// コンテナを削除してループを抜ける
+			if stopErr := e.docker.StopContainer(ctx, containerID, nil); stopErr != nil {
+				e.logger.Warn("runInstances: cleanup stop failed after Put error",
+					zap.String("container_id", containerID),
+					zap.Error(stopErr),
+				)
+			}
+			if rmErr := e.docker.RemoveContainer(ctx, containerID); rmErr != nil {
+				e.logger.Warn("runInstances: cleanup remove failed after Put error",
+					zap.String("container_id", containerID),
+					zap.Error(rmErr),
+				)
+			}
 			break
 		}
 
+		launchedEntries = append(launchedEntries, launchedEntry{instanceID: instanceID, containerID: containerID})
 		launched = append(launched, instanceItemFromResource(resource))
 	}
 
 	// minCount 分起動できなかった場合はクリーンアップして InsufficientInstanceCapacity を返す
 	if len(launched) < minCount {
-		for _, cid := range containerIDs {
-			if stopErr := e.docker.StopContainer(ctx, cid, nil); stopErr != nil {
+		for _, entry := range launchedEntries {
+			if stopErr := e.docker.StopContainer(ctx, entry.containerID, nil); stopErr != nil {
 				e.logger.Warn("runInstances: cleanup stop failed",
-					zap.String("container_id", cid),
+					zap.String("container_id", entry.containerID),
 					zap.Error(stopErr),
 				)
 			}
-			if rmErr := e.docker.RemoveContainer(ctx, cid); rmErr != nil {
+			if rmErr := e.docker.RemoveContainer(ctx, entry.containerID); rmErr != nil {
 				e.logger.Warn("runInstances: cleanup remove failed",
-					zap.String("container_id", cid),
+					zap.String("container_id", entry.containerID),
 					zap.Error(rmErr),
+				)
+			}
+			if delErr := e.store.Delete(ctx, kindInstance, entry.instanceID); delErr != nil {
+				e.logger.Warn("runInstances: cleanup store.Delete failed",
+					zap.String("instance_id", entry.instanceID),
+					zap.Error(delErr),
 				)
 			}
 		}
@@ -518,9 +546,6 @@ func (e *EC2Service) terminateInstances(ctx context.Context, req service.Request
 
 		// コンテナを停止・削除
 		containerID := r.ContainerID
-		if containerID == "" {
-			containerID, _ = r.Spec["ContainerID"].(string)
-		}
 		if containerID != "" {
 			if stopErr := e.docker.StopContainer(ctx, containerID, nil); stopErr != nil {
 				e.logger.Warn("terminateInstances: stop container failed",

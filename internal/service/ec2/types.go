@@ -120,9 +120,3 @@ type DeleteTagsResponse struct {
 	Return    bool     `xml:"return"`
 }
 
-// DescribeTagsResponse は DescribeTags アクションのレスポンスです。
-type DescribeTagsResponse struct {
-	XMLName   xml.Name  `xml:"DescribeTagsResponse"`
-	RequestId string    `xml:"requestId"`
-	TagSet    []TagItem `xml:"tagSet>item"`
-}

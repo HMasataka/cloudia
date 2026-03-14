@@ -112,9 +112,6 @@ func (e *EC2Service) Shutdown(ctx context.Context) error {
 	for _, r := range instances {
 		containerID := r.ContainerID
 		if containerID == "" {
-			containerID, _ = r.Spec["ContainerID"].(string)
-		}
-		if containerID == "" {
 			continue
 		}
 		if stopErr := e.docker.StopContainer(ctx, containerID, nil); stopErr != nil {

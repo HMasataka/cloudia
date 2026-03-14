@@ -339,6 +339,162 @@ func TestEC2Service_StopInstances(t *testing.T) {
 	}
 }
 
+// TestEC2Service_RunInstances_InvalidInstanceType は未知 InstanceType で InvalidParameterValue エラーを返すことを検証します。
+func TestEC2Service_RunInstances_InvalidInstanceType(t *testing.T) {
+	svc, _, _ := newTestEC2Service(t)
+
+	resp, err := svc.HandleRequest(context.Background(), service.Request{
+		Provider: "aws",
+		Service:  "ec2",
+		Action:   "RunInstances",
+		Params: map[string]string{
+			"ImageId":      "ami-12345678",
+			"InstanceType": "x99.unknowntype",
+			"MinCount":     "1",
+			"MaxCount":     "1",
+		},
+	})
+	if err != nil {
+		t.Fatalf("HandleRequest: unexpected error: %v", err)
+	}
+	if resp.StatusCode == 200 {
+		t.Fatal("RunInstances with invalid InstanceType: expected error, got 200")
+	}
+	if !strings.Contains(string(resp.Body), "InvalidParameterValue") {
+		t.Errorf("RunInstances with invalid InstanceType: expected InvalidParameterValue in response: %s", resp.Body)
+	}
+}
+
+// TestEC2Service_CreateTags はタグ追加後に DescribeInstances で tagSet に反映されることを検証します。
+func TestEC2Service_CreateTags(t *testing.T) {
+	svc, _, _ := newTestEC2Service(t)
+
+	// インスタンスを起動してIDを取得
+	runResp := handleEC2Request(t, svc, "RunInstances", map[string]string{
+		"ImageId":      "ami-12345678",
+		"InstanceType": "t2.micro",
+		"MinCount":     "1",
+		"MaxCount":     "1",
+	})
+	body := string(runResp.Body)
+	idStart := strings.Index(body, "<instanceId>")
+	idEnd := strings.Index(body, "</instanceId>")
+	if idStart < 0 || idEnd < 0 {
+		t.Fatalf("could not extract instanceId: %s", body)
+	}
+	instanceID := body[idStart+12 : idEnd]
+
+	// タグを追加
+	tagResp := handleEC2Request(t, svc, "CreateTags", map[string]string{
+		"ResourceId.1": instanceID,
+		"Tag.1.Key":   "Name",
+		"Tag.1.Value": "test-instance",
+	})
+	if tagResp.StatusCode != 200 {
+		t.Fatalf("CreateTags: expected 200, got %d. body=%s", tagResp.StatusCode, tagResp.Body)
+	}
+
+	// DescribeInstances でタグが反映されているか確認
+	descResp := handleEC2Request(t, svc, "DescribeInstances", map[string]string{
+		"InstanceId.1": instanceID,
+	})
+	descBody := string(descResp.Body)
+	if !strings.Contains(descBody, "test-instance") {
+		t.Errorf("CreateTags: tag value not found in DescribeInstances response: %s", descBody)
+	}
+	if !strings.Contains(descBody, "Name") {
+		t.Errorf("CreateTags: tag key not found in DescribeInstances response: %s", descBody)
+	}
+}
+
+// TestEC2Service_DeleteTags はタグ削除後に DescribeInstances で反映されることを検証します。
+func TestEC2Service_DeleteTags(t *testing.T) {
+	svc, _, _ := newTestEC2Service(t)
+
+	// インスタンスを起動してIDを取得
+	runResp := handleEC2Request(t, svc, "RunInstances", map[string]string{
+		"ImageId":      "ami-12345678",
+		"InstanceType": "t2.micro",
+		"MinCount":     "1",
+		"MaxCount":     "1",
+	})
+	body := string(runResp.Body)
+	idStart := strings.Index(body, "<instanceId>")
+	idEnd := strings.Index(body, "</instanceId>")
+	if idStart < 0 || idEnd < 0 {
+		t.Fatalf("could not extract instanceId: %s", body)
+	}
+	instanceID := body[idStart+12 : idEnd]
+
+	// タグを追加
+	handleEC2Request(t, svc, "CreateTags", map[string]string{
+		"ResourceId.1": instanceID,
+		"Tag.1.Key":   "Env",
+		"Tag.1.Value": "staging",
+	})
+
+	// タグを削除
+	delResp := handleEC2Request(t, svc, "DeleteTags", map[string]string{
+		"ResourceId.1": instanceID,
+		"Tag.1.Key":   "Env",
+	})
+	if delResp.StatusCode != 200 {
+		t.Fatalf("DeleteTags: expected 200, got %d. body=%s", delResp.StatusCode, delResp.Body)
+	}
+
+	// DescribeInstances でタグが削除されているか確認
+	descResp := handleEC2Request(t, svc, "DescribeInstances", map[string]string{
+		"InstanceId.1": instanceID,
+	})
+	descBody := string(descResp.Body)
+	if strings.Contains(descBody, "staging") {
+		t.Errorf("DeleteTags: deleted tag value still found in DescribeInstances response: %s", descBody)
+	}
+}
+
+// TestEC2Service_DescribeTags はタグ一覧が返ることを検証します。
+func TestEC2Service_DescribeTags(t *testing.T) {
+	svc, _, _ := newTestEC2Service(t)
+
+	// インスタンスを起動してIDを取得
+	runResp := handleEC2Request(t, svc, "RunInstances", map[string]string{
+		"ImageId":      "ami-12345678",
+		"InstanceType": "t2.micro",
+		"MinCount":     "1",
+		"MaxCount":     "1",
+	})
+	body := string(runResp.Body)
+	idStart := strings.Index(body, "<instanceId>")
+	idEnd := strings.Index(body, "</instanceId>")
+	if idStart < 0 || idEnd < 0 {
+		t.Fatalf("could not extract instanceId: %s", body)
+	}
+	instanceID := body[idStart+12 : idEnd]
+
+	// タグを追加
+	handleEC2Request(t, svc, "CreateTags", map[string]string{
+		"ResourceId.1": instanceID,
+		"Tag.1.Key":   "Project",
+		"Tag.1.Value": "cloudia",
+	})
+
+	// DescribeTags でタグ一覧を取得
+	descResp := handleEC2Request(t, svc, "DescribeTags", map[string]string{})
+	if descResp.StatusCode != 200 {
+		t.Fatalf("DescribeTags: expected 200, got %d. body=%s", descResp.StatusCode, descResp.Body)
+	}
+	descBody := string(descResp.Body)
+	if !strings.Contains(descBody, "Project") {
+		t.Errorf("DescribeTags: tag key not found in response: %s", descBody)
+	}
+	if !strings.Contains(descBody, "cloudia") {
+		t.Errorf("DescribeTags: tag value not found in response: %s", descBody)
+	}
+	if !strings.Contains(descBody, instanceID) {
+		t.Errorf("DescribeTags: instanceID not found in response: %s", descBody)
+	}
+}
+
 // TestEC2Service_StartInstances は stopped から running/16 に復帰することを検証します。
 func TestEC2Service_StartInstances(t *testing.T) {
 	svc, _, _ := newTestEC2Service(t)
