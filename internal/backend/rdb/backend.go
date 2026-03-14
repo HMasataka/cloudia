@@ -12,7 +12,6 @@ import (
 )
 
 const (
-	mysqlContainerName  = "cloudia-mysql"
 	mysqlServiceLabel   = "rdb"
 	rdbNetwork          = "cloudia"
 	healthCheckMaxTries = 60
@@ -56,7 +55,7 @@ func (b *RDBBackend) Init(ctx context.Context, deps service.ServiceDeps) error {
 		defaultPort = 3306
 	}
 
-	hostPort, err := deps.PortAllocator.Allocate(defaultPort, mysqlContainerName)
+	hostPort, err := deps.PortAllocator.Allocate(defaultPort, b.engine.ContainerName())
 	if err != nil {
 		return fmt.Errorf("rdb: allocate port: %w", err)
 	}
@@ -76,7 +75,7 @@ func (b *RDBBackend) Init(ctx context.Context, deps service.ServiceDeps) error {
 
 	containerID, err := b.runner.RunContainer(ctx, docker.ContainerConfig{
 		Image: b.engine.Image(),
-		Name:  mysqlContainerName,
+		Name:  b.engine.ContainerName(),
 		Labels: map[string]string{
 			docker.LabelService: mysqlServiceLabel,
 		},
