@@ -142,14 +142,14 @@ CLI → Gateway → Auth (SigV4/OAuth) → Protocol (XML/JSON変換) → Service
 **ゴール**: EC2 インスタンスの基本的な起動・停止が Docker コンテナで動作する
 **完動品としての価値**: `aws ec2 run-instances` でコンテナが起動し `describe-instances` で状態確認できる。Terraform `aws_instance` が apply 可能
 
-- [ ] AWS EC2 サービス (`internal/service/aws/ec2/service.go`): Service 実装
-- [ ] EC2 基本ハンドラ (`internal/service/aws/ec2/handlers.go`): RunInstances, TerminateInstances, DescribeInstances, StartInstances, StopInstances の各ハンドラ実装
-- [ ] EC2 モデル (`internal/service/aws/ec2/models.go`): Instance, Reservation のリソースモデル
-- [ ] AMI マッピング: 設定ファイルの `ami_mappings` から Docker イメージを解決。未知の AMI ID にはフォールバックイメージ（デフォルト: ubuntu:22.04）を使用
-- [ ] インスタンスタイプ→コンテナリソース制限マッピング
-- [ ] 状態マッピング: Docker コンテナ状態 → EC2 インスタンス状態（created→pending, running→running, paused→stopped, exited→terminated）
-- [ ] タグ管理: CreateTags, DeleteTags, DescribeTags の各ハンドラ実装
-- [ ] テスト: `aws ec2 run-instances`, `describe-instances`, `terminate-instances` の統合テスト。Terraform `aws_instance` の apply/destroy テスト。EC2 インスタンス起動が 15 秒以内で完了する性能テスト
+- [x] AWS EC2 サービス (`internal/service/aws/ec2/service.go`): Service 実装
+- [x] EC2 基本ハンドラ (`internal/service/aws/ec2/handlers.go`): RunInstances, TerminateInstances, DescribeInstances, StartInstances, StopInstances の各ハンドラ実装
+- [x] EC2 モデル (`internal/service/aws/ec2/models.go`): Instance, Reservation のリソースモデル
+- [x] AMI マッピング: 設定ファイルの `ami_mappings` から Docker イメージを解決。未知の AMI ID にはフォールバックイメージ（デフォルト: ubuntu:22.04）を使用
+- [x] インスタンスタイプ→コンテナリソース制限マッピング
+- [x] 状態マッピング: Docker コンテナ状態 → EC2 インスタンス状態（created→pending, running→running, paused→stopped, exited→terminated）
+- [x] タグ管理: CreateTags, DeleteTags, DescribeTags の各ハンドラ実装
+- [x] テスト: `aws ec2 run-instances`, `describe-instances`, `terminate-instances` の統合テスト。Terraform `aws_instance` の apply/destroy テスト。EC2 インスタンス起動が 15 秒以内で完了する性能テスト
 
 ---
 
