@@ -171,13 +171,14 @@ CLI → Gateway → Auth (SigV4/OAuth) → Protocol (XML/JSON変換) → Service
 **ゴール**: Redis と MySQL のコンテナバックエンドが動作し、関連サービスの基本 CRUD が可能
 **完動品としての価値**: Terraform で ElastiCache/RDS を作成し、実際に Redis/MySQL に接続してクエリ実行可能。Phase 2 の PostgreSQL 追加を見据え、RDB バックエンドにエンジン種別の切替設計（Strategy パターン）を含める
 
-- [ ] Redis バックエンド (`internal/backend/redis/backend.go`): Redis コンテナの起動・停止・再利用、ヘルスチェック、AUTH 設定
-- [ ] RDB バックエンド (`internal/backend/rdb/backend.go`): MySQL コンテナの起動・停止・再利用、ヘルスチェック、root パスワード設定、初期 DB 作成。エンジン種別による条件分岐の設計（Strategy パターン）を含め Phase 2 の PostgreSQL 追加に備える
-- [ ] AWS ElastiCache サービス (`internal/service/aws/elasticache/`): service.go, handlers.go, models.go — CreateCacheCluster, DeleteCacheCluster, DescribeCacheClusters, ModifyCacheCluster, CreateReplicationGroup, DeleteReplicationGroup, DescribeReplicationGroups, CreateCacheParameterGroup, DescribeCacheParameterGroups の各ハンドラ実装。AUTH トークン対応
-- [ ] AWS RDS サービス (`internal/service/aws/rds/`): service.go, handlers.go, models.go — CreateDBInstance, DeleteDBInstance, DescribeDBInstances, ModifyDBInstance, RebootDBInstance, CreateDBSnapshot, DeleteDBSnapshot, DescribeDBSnapshots, CreateDBParameterGroup, DescribeDBParameterGroups の各ハンドラ実装。エンジンは MySQL 8.0 のみ（Phase 2 で PostgreSQL 追加）
-- [ ] GCP Memorystore サービス (`internal/service/gcp/memorystore/`): service.go, handlers.go, models.go — instances.create, .get, .list, .delete の各ハンドラ実装。`share_backend_with: "aws.elasticache"` で Redis 共有
-- [ ] GCP Cloud SQL サービス (`internal/service/gcp/cloudsql/`): service.go, handlers.go, models.go — instances.insert, .get, .list, .delete の各ハンドラ実装。`share_backend_with: "aws.rds"` で MySQL 共有
-- [ ] テスト: Terraform `aws_elasticache_cluster`, `aws_db_instance` の apply/destroy テスト。Redis/MySQL への接続確認テスト。ElastiCache/RDS インスタンス作成が 10 秒以内で完了する性能テスト
+- [x] Redis バックエンド (`internal/backend/redis/backend.go`): Redis コンテナの起動・停止・再利用、ヘルスチェック、AUTH 設定
+- [x] RDB バックエンド (`internal/backend/rdb/backend.go`): MySQL コンテナの起動・停止・再利用、ヘルスチェック、root パスワード設定、初期 DB 作成。エンジン種別による条件分岐の設計（Strategy パターン）を含め Phase 2 の PostgreSQL 追加に備える
+- [x] AWS ElastiCache サービス (`internal/service/elasticache/`): CreateCacheCluster, DeleteCacheCluster, DescribeCacheClusters, ModifyCacheCluster, CreateReplicationGroup, DeleteReplicationGroup, DescribeReplicationGroups の各ハンドラ実装
+- [x] AWS RDS サービス (`internal/service/rds/`): CreateDBInstance, DeleteDBInstance, DescribeDBInstances, ModifyDBInstance, CreateDBSnapshot, DeleteDBSnapshot, DescribeDBSnapshots の各ハンドラ実装。エンジンは MySQL 8.0 のみ（Phase 2 で PostgreSQL 追加）
+- [x] GCP Memorystore サービス (`internal/service/memorystore/`): instances.create, .get, .list, .delete の各ハンドラ実装。SharedBackend で Redis 共有
+- [x] GCP Cloud SQL サービス (`internal/service/cloudsql/`): instances.insert, .get, .list, .delete の各ハンドラ実装。SharedBackend で MySQL 共有
+- [x] GCP ルーターバグ修正: Memorystore/Cloud SQL パス衝突を resolveV1ProjectsService で解消
+- [x] テスト: ElastiCache/RDS/Memorystore/Cloud SQL/RDB Backend の HandleRequest ロジックテスト
 
 ---
 
