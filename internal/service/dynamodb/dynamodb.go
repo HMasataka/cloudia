@@ -2,6 +2,10 @@ package dynamodb
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
 
 	"github.com/HMasataka/cloudia/internal/config"
 	"github.com/HMasataka/cloudia/internal/service"
@@ -14,6 +18,7 @@ type DynamoDBService struct {
 	cfg     config.AWSAuthConfig
 	backend *dynamodbBackend
 	logger  *zap.Logger
+	proxy   *httputil.ReverseProxy
 }
 
 // NewDynamoDBService creates a new DynamoDBService with the given AWS auth configuration.
@@ -22,16 +27,6 @@ func NewDynamoDBService(cfg config.AWSAuthConfig, logger *zap.Logger) *DynamoDBS
 		cfg:     cfg,
 		backend: &dynamodbBackend{},
 		logger:  logger,
-	}
-}
-
-// NewDynamoDBServiceWithEndpoint creates a DynamoDBService that targets an existing DynamoDB Local endpoint.
-// Intended for testing without Docker integration.
-func NewDynamoDBServiceWithEndpoint(cfg config.AWSAuthConfig, endpoint string) *DynamoDBService {
-	return &DynamoDBService{
-		cfg:     cfg,
-		backend: newDynamoDBBackendWithURL(endpoint),
-		logger:  zap.NewNop(),
 	}
 }
 
@@ -45,9 +40,26 @@ func (s *DynamoDBService) Provider() string {
 	return "aws"
 }
 
-// Init initializes the DynamoDB Local backend.
+// Init initializes the DynamoDB Local backend and constructs the reverse proxy.
 func (s *DynamoDBService) Init(ctx context.Context, deps service.ServiceDeps) error {
-	return s.backend.Init(ctx, s.cfg, deps)
+	if err := s.backend.Init(ctx, s.cfg, deps); err != nil {
+		return err
+	}
+
+	target, err := url.Parse(s.backend.baseURL)
+	if err != nil {
+		return fmt.Errorf("dynamodb: parse backend url: %w", err)
+	}
+
+	p := httputil.NewSingleHostReverseProxy(target)
+	p.ErrorHandler = func(rw http.ResponseWriter, _ *http.Request, _ error) {
+		rw.Header().Set("Content-Type", "application/x-amz-json-1.0")
+		rw.WriteHeader(http.StatusBadGateway)
+		rw.Write([]byte(dynamodbErrorBody)) //nolint:errcheck
+	}
+	s.proxy = p
+
+	return nil
 }
 
 // HandleRequest returns ErrUnsupportedOperation; actual requests are served via ServeHTTP.

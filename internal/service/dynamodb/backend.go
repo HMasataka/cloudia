@@ -49,7 +49,7 @@ func (d *dynamodbBackend) Init(ctx context.Context, cfg config.AWSAuthConfig, de
 	d.runner = deps.DockerClient
 	d.portAlloc = deps.PortAllocator
 
-	containerID, err := d.findOrCreateContainer(ctx, cfg, deps, hostPort)
+	containerID, err := d.createContainer(ctx, cfg, deps, hostPort)
 	if err != nil {
 		deps.PortAllocator.Release(hostPort)
 		return err
@@ -64,8 +64,8 @@ func (d *dynamodbBackend) Init(ctx context.Context, cfg config.AWSAuthConfig, de
 	return nil
 }
 
-// findOrCreateContainer reuses an existing DynamoDB Local container or creates a new one.
-func (d *dynamodbBackend) findOrCreateContainer(
+// createContainer creates a new DynamoDB Local container.
+func (d *dynamodbBackend) createContainer(
 	ctx context.Context,
 	_ config.AWSAuthConfig,
 	_ service.ServiceDeps,
