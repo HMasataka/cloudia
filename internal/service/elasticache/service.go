@@ -55,7 +55,6 @@ func (e *ElastiCacheService) Init(ctx context.Context, deps service.ServiceDeps)
 	if deps.Registry != nil {
 		deps.Registry.SharedBackend("redis-host", e.redis.Host())
 		deps.Registry.SharedBackend("redis-port", e.redis.Port())
-		deps.Registry.SharedBackend("redis-auth", e.redis.AuthToken())
 	}
 
 	return nil

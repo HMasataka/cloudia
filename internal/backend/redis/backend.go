@@ -30,7 +30,6 @@ type RedisBackend struct {
 	containerID string
 	host        string
 	port        string
-	authToken   string
 }
 
 // NewRedisBackend creates a new RedisBackend with the given logger.
@@ -42,7 +41,6 @@ func NewRedisBackend(logger *zap.Logger) *RedisBackend {
 }
 
 // Init starts a Redis container and waits for it to be ready via PING/PONG health check.
-// authToken is not applied to the container at Init time; it is metadata only.
 func (r *RedisBackend) Init(ctx context.Context, deps service.ServiceDeps) error {
 	hostPort, err := deps.PortAllocator.Allocate(6379, "redis")
 	if err != nil {
@@ -109,16 +107,6 @@ func (r *RedisBackend) Port() string {
 	return r.port
 }
 
-// AuthToken returns the auth token associated with this backend (metadata only).
-func (r *RedisBackend) AuthToken() string {
-	return r.authToken
-}
-
-// SetAuthToken sets the auth token metadata without modifying the running container.
-func (r *RedisBackend) SetAuthToken(token string) {
-	r.authToken = token
-}
-
 // waitHealthy polls the Redis PING endpoint until it responds or the attempt limit is reached.
 func (r *RedisBackend) waitHealthy(ctx context.Context) error {
 	for i := 0; i < healthCheckMaxTries; i++ {
@@ -161,55 +149,9 @@ func (r *RedisBackend) ping(ctx context.Context) error {
 	return nil
 }
 
-// pingWithAuth sends AUTH + PING over raw TCP when an authToken is provided.
-func (r *RedisBackend) pingWithAuth(ctx context.Context, authToken string) error {
-	addr := net.JoinHostPort(r.host, r.port)
-	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", addr)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	authCmd := fmt.Sprintf("*2\r\n$4\r\nAUTH\r\n$%d\r\n%s\r\n", len(authToken), authToken)
-	if _, err := fmt.Fprint(conn, authCmd); err != nil {
-		return err
-	}
-
-	reader := bufio.NewReader(conn)
-	authResp, err := reader.ReadString('\n')
-	if err != nil {
-		return err
-	}
-	authResp = strings.TrimSpace(authResp)
-	if authResp != "+OK" {
-		return fmt.Errorf("redis AUTH failed: %q", authResp)
-	}
-
-	if _, err := fmt.Fprint(conn, "*1\r\n$4\r\nPING\r\n"); err != nil {
-		return err
-	}
-
-	pingResp, err := reader.ReadString('\n')
-	if err != nil {
-		return err
-	}
-	pingResp = strings.TrimSpace(pingResp)
-	if pingResp != "+PONG" {
-		return fmt.Errorf("unexpected redis response after AUTH: %q", pingResp)
-	}
-
-	return nil
-}
-
 // Health checks whether Redis is reachable via PING.
 func (r *RedisBackend) Health(ctx context.Context) service.HealthStatus {
-	var err error
-	if r.authToken != "" {
-		err = r.pingWithAuth(ctx, r.authToken)
-	} else {
-		err = r.ping(ctx)
-	}
-	if err != nil {
+	if err := r.ping(ctx); err != nil {
 		return service.HealthStatus{Healthy: false, Message: err.Error()}
 	}
 	return service.HealthStatus{Healthy: true, Message: "ok"}

@@ -5,8 +5,7 @@ const kindInstance = "gcp:memorystore:instance"
 
 // Instance status values.
 const (
-	statusReady   = "READY"
-	statusCreating = "CREATING"
+	statusReady    = "READY"
 	statusDeleting = "DELETING"
 )
 

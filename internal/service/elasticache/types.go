@@ -25,14 +25,13 @@ type Endpoint struct {
 
 // CacheClusterItem はレスポンス内の CacheCluster 要素です。
 type CacheClusterItem struct {
-	CacheClusterId          string   `xml:"CacheClusterId"`
-	CacheClusterStatus      string   `xml:"CacheClusterStatus"`
-	CacheNodeType           string   `xml:"CacheNodeType"`
-	Engine                  string   `xml:"Engine"`
-	EngineVersion           string   `xml:"EngineVersion"`
-	NumCacheNodes           int      `xml:"NumCacheNodes"`
-	ConfigurationEndpoint   Endpoint `xml:"ConfigurationEndpoint"`
-	PreferredMaintenanceWindow string `xml:"PreferredMaintenanceWindow,omitempty"`
+	CacheClusterId        string   `xml:"CacheClusterId"`
+	CacheClusterStatus    string   `xml:"CacheClusterStatus"`
+	CacheNodeType         string   `xml:"CacheNodeType"`
+	Engine                string   `xml:"Engine"`
+	EngineVersion         string   `xml:"EngineVersion"`
+	NumCacheNodes         int      `xml:"NumCacheNodes"`
+	ConfigurationEndpoint Endpoint `xml:"ConfigurationEndpoint"`
 }
 
 // CreateCacheClusterResult はクラスター作成結果です。

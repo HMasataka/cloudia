@@ -15,7 +15,6 @@ const (
 const (
 	statusAvailable = "available"
 	statusDeleting  = "deleting"
-	statusCreating  = "creating"
 )
 
 // DBInstanceMember はレスポンス内の DBInstance 要素です。

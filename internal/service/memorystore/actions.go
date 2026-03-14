@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/HMasataka/cloudia/internal/service"
@@ -126,7 +127,7 @@ func (m *MemorystoreService) listInstances(ctx context.Context, project, locatio
 	prefix := project + "/" + location + "/"
 	var items []InstanceItem
 	for _, r := range all {
-		if len(r.ID) > len(prefix) && r.ID[:len(prefix)] == prefix {
+		if strings.HasPrefix(r.ID, prefix) {
 			items = append(items, instanceItemFromResource(r, project, location))
 		}
 	}

@@ -77,7 +77,6 @@ func (b *RDBBackend) Init(ctx context.Context, deps service.ServiceDeps) error {
 		Image: b.engine.Image(),
 		Name:  mysqlContainerName,
 		Labels: map[string]string{
-			docker.LabelManaged: "true",
 			docker.LabelService: mysqlServiceLabel,
 		},
 		Env: envMap,

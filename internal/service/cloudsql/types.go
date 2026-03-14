@@ -6,7 +6,6 @@ const kindInstance = "gcp:cloudsql:instance"
 // Instance status values.
 const (
 	statusRunnable = "RUNNABLE"
-	statusCreating = "PENDING_CREATE"
 	statusDeleting = "DELETING"
 )
 
@@ -24,12 +23,6 @@ type InstanceSettings struct {
 	DataDiskSizeGb   string `json:"dataDiskSizeGb,omitempty"`
 	DataDiskType     string `json:"dataDiskType,omitempty"`
 	ActivationPolicy string `json:"activationPolicy,omitempty"`
-	BackupConfiguration *BackupConfiguration `json:"backupConfiguration,omitempty"`
-}
-
-// BackupConfiguration はバックアップ設定です。
-type BackupConfiguration struct {
-	Enabled bool `json:"enabled"`
 }
 
 // InstanceItem は Cloud SQL インスタンスを表します。

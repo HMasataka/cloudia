@@ -112,11 +112,6 @@ func (e *ElastiCacheService) createCacheCluster(ctx context.Context, req service
 		return service.Response{StatusCode: http.StatusInternalServerError}, err
 	}
 
-	// AuthToken はメタデータとして保存するが Redis コンテナの requirepass は変更しない
-	if authToken != "" {
-		e.redis.SetAuthToken(authToken)
-	}
-
 	item := cacheClusterItemFromResource(resource, e.redis.Host(), e.redisPort())
 	resp := CreateCacheClusterResponse{
 		RequestId:                "cloudia-elasticache",

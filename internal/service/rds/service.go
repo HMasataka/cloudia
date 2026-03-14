@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"go.uber.org/zap"
 
@@ -145,9 +144,8 @@ func dbInstanceMemberFromSpec(id string, spec map[string]interface{}) DBInstance
 		}
 	}
 
-	portInt, _ := strconv.Atoi("3306")
 	if endpointPort == 0 {
-		endpointPort = portInt
+		endpointPort = 3306
 	}
 
 	return DBInstanceMember{
