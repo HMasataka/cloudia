@@ -115,18 +115,13 @@ CLI → Gateway → Auth (SigV4/OAuth) → Protocol (XML/JSON変換) → Service
 **ゴール**: S3 の拡張機能（マルチパート、ポリシー、バージョニング等）と GCP Cloud Storage を実装
 **完動品としての価値**: S3 の高度な機能が Terraform で設定可能。GCS も同じ MinIO バックエンドで動作
 
-- [ ] S3 マルチパートアップロード: CreateMultipartUpload, UploadPart, CompleteMultipartUpload, AbortMultipartUpload のハンドラ実装
-- [ ] S3 バケットポリシー: PutBucketPolicy, GetBucketPolicy, DeleteBucketPolicy のハンドラ実装
-- [ ] S3 バージョニング: PutBucketVersioning, GetBucketVersioning のハンドラ実装
-- [ ] S3 ACL: PutBucketAcl, GetBucketAcl のハンドラ実装
-- [ ] S3 CORS: PutBucketCors, GetBucketCors, DeleteBucketCors のハンドラ実装
-- [ ] S3 ライフサイクル: PutBucketLifecycleConfiguration, GetBucketLifecycleConfiguration のハンドラ実装
-- [ ] S3 バーチャルホスト形式: `{bucket}.s3.localhost:4566` でのアクセス対応
-- [ ] GCP Cloud Storage サービス (`internal/service/gcp/storage/service.go`): Service 実装、`share_backend_with: "aws.s3"` で MinIO 共有
-- [ ] GCS ハンドラ (`internal/service/gcp/storage/handlers.go`): buckets.insert, .get, .list, .delete, objects.insert, .get, .list, .delete, .copy の各ハンドラ実装
-- [ ] GCS モデル (`internal/service/gcp/storage/models.go`): GCS リソースモデル
-- [ ] GCS JSON API (`storage.googleapis.com`) 互換エンドポイント
-- [ ] テスト: S3 マルチパートアップロードテスト、Terraform `aws_s3_bucket` のポリシー/バージョニング設定テスト、GCS バケット CRUD テスト
+- [x] S3 SupportedActions拡張（マルチパート/ポリシー/バージョニング/ACL/CORS/ライフサイクル）: MinIOリバースプロキシのパススルーで動作。State Store連携でバケット設定変更を記録
+- [x] S3 バーチャルホスト形式: `{bucket}.s3.localhost:4566` でのアクセス対応（`internal/gateway/virtualhost.go`）
+- [x] GCP Cloud Storage サービス (`internal/service/gcs/`): ProxyService方式でGCS JSON API→S3パス変換+XML→JSON変換。SharedBackend経由でMinIO共有
+- [x] GCS バケットCRUD: buckets.insert, .get, .list, .delete のGCS JSON API互換ハンドラ
+- [x] GCS オブジェクトCRUD: objects.insert (simple upload), .get, .list, .delete, .copy。`?alt=media` ストリーミング対応
+- [x] GCS SigV4署名生成 (`internal/service/gcs/sigv4.go`): GCS→MinIO認証用の最小SigV4実装
+- [x] テスト: GCS バケット/オブジェクトCRUD、XML→JSON変換、ProxyServiceルーティングのユニットテスト
 
 ---
 
