@@ -1,3 +1,14 @@
 .belt/*
 !.belt/spec.md
 !.belt/roadmap.md
+!.belt/phases/
+
+# ビルドバイナリ
+/cloudia
+*.exe
+
+# ランタイムデータ
+.cloudia/
+
+# ワークフロー中間ファイル
+.belt/phases/
