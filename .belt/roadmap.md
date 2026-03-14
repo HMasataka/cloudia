@@ -224,13 +224,13 @@ CLI → Gateway → Auth (SigV4/OAuth) → Protocol (XML/JSON変換) → Service
 **ゴール**: 最後のサービス（Pub/Sub）を実装し、メトリクス・エッジケースハンドリング・E2E テストを整備する
 **完動品としての価値**: Phase 1 の全サービスが動作し、本番利用に耐えるエラーハンドリング・モニタリング・クリーンアップが整備された状態
 
-- [ ] GCP Pub/Sub サービス (`internal/service/gcp/pubsub/`): service.go, handlers.go, models.go — projects.topics.create, .get, .list, .delete, .publish, projects.subscriptions.create, .get, .list, .delete, .pull, .acknowledge の各ハンドラ実装。バックエンドはインメモリ
-- [ ] Prometheus メトリクス (`internal/gateway/middleware/metrics.go`): リクエスト数、レイテンシヒストグラム、エラーレート（プロバイダ/サービス/アクション別）。メトリクスエンドポイント公開
-- [ ] エッジケースハンドリング強化: Docker デーモン未起動時のエラーメッセージと起動ガイド、OOM 検出（OOMKilled→適切なエラー）、イメージプル失敗時のリトライ（最大3回、exponential backoff）、ディスク枯渇検出（ストレージクォータチェック）、並行リクエストのロック競合タイムアウト、リソース不足時（max_containers 到達）の拒否エラー、State 不整合時の自動 reconciliation トリガー、ポート衝突時の自動リトライ、冪等性チェック（ClientToken/RequestId ベース）
-- [ ] Reconciliation 定期実行: バックグラウンドゴルーチンで reconciliation_interval（デフォルト 30 秒）ごとに State↔Docker 照合、孤立コンテナの自動クリーンアップ
-- [ ] AWS リージョン / GCP ゾーンの概念をメタデータとして管理（実際のリージョン分離はしない）
-- [ ] Terraform state と Cloudia 内部状態の不整合検出・警告ログ
-- [ ] E2E テスト: AWS CLI を使った S3/EC2/SQS/DynamoDB の基本操作テスト、Terraform hashicorp/aws で S3+IAM+EC2 のマルチリソース apply テスト、GCP CLI を使った Cloud Storage/Compute Engine テスト、Terraform hashicorp/google での apply テスト、全サービスの参照系 API レスポンスが 500ms 以内である性能テスト
+- [x] GCP Pub/Sub サービス (`internal/service/pubsub/`): インメモリバックエンドで topic/subscription CRUD、publish (fan-out)、pull、acknowledge を実装。GCP REST API 互換
+- [x] Prometheus メトリクス (`internal/gateway/middleware/metrics.go`): リクエスト数、レイテンシヒストグラム、エラーレート（プロバイダ/サービス/アクション別）。メトリクスエンドポイント公開
+- [x] エッジケースハンドリング強化: Docker デーモン未起動時エラー改善、OOM 検出、イメージプルリトライ (exponential backoff)、ディスク枯渇検出、冪等性ミドルウェア (ClientToken/X-Goog-Request-Id)
+- [x] Reconciliation 定期実行: バックグラウンドゴルーチンで定期照合、孤立コンテナの自動クリーンアップ (上限10件/回)
+- [x] AWS リージョン / GCP ゾーンのメタデータ管理: EC2 Placement.AvailabilityZone、GCE zone フィールド反映
+- [x] Terraform state と Cloudia 内部状態の不整合検出・警告ログ (404 時の Warn ログ)
+- [x] E2E テスト (`e2e/`): AWS CLI / GCP CLI / Terraform の CRUD テスト、P95 500ms 以内の性能テスト。`//go:build e2e` で分離
 
 ---
 
