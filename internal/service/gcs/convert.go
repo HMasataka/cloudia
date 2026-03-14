@@ -119,7 +119,7 @@ type gcsObject struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Bucket      string `json:"bucket"`
-	Size        string `json:"size"`
+	Size        string `json:"size,omitempty"`
 	ContentType string `json:"contentType"`
 	TimeCreated string `json:"timeCreated"`
 	Updated     string `json:"updated"`
@@ -165,9 +165,6 @@ func convertObjectMetadataToJSON(bucket, object string, header http.Header, base
 	}
 
 	size := header.Get("Content-Length")
-	if size == "" {
-		size = "0"
-	}
 
 	contentType := header.Get("Content-Type")
 	if contentType == "" {
@@ -186,6 +183,7 @@ func convertObjectMetadataToJSON(bucket, object string, header http.Header, base
 		TimeCreated: timeCreated,
 		Updated:     updated,
 		MediaLink:   fmt.Sprintf("%s/download/storage/v1/b/%s/o/%s?alt=media", baseURL, bucket, object),
+		MD5Hash:     etag,
 		Etag:        etag,
 	}
 
@@ -194,12 +192,13 @@ func convertObjectMetadataToJSON(bucket, object string, header http.Header, base
 }
 
 // convertObjectUploadToJSON generates a GCS object JSON response after a successful PUT.
-func convertObjectUploadToJSON(bucket, object string, header http.Header, baseURL string) []byte {
+// bodySize is the number of bytes uploaded; pass -1 when the size is unknown (e.g. server-side copy).
+func convertObjectUploadToJSON(bucket, object string, header http.Header, baseURL string, bodySize int64) []byte {
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	size := header.Get("Content-Length")
-	if size == "" {
-		size = "0"
+	var size string
+	if bodySize >= 0 {
+		size = fmt.Sprintf("%d", bodySize)
 	}
 
 	contentType := header.Get("Content-Type")
@@ -219,6 +218,7 @@ func convertObjectUploadToJSON(bucket, object string, header http.Header, baseUR
 		TimeCreated: now,
 		Updated:     now,
 		MediaLink:   fmt.Sprintf("%s/download/storage/v1/b/%s/o/%s?alt=media", baseURL, bucket, object),
+		MD5Hash:     etag,
 		Etag:        etag,
 	}
 

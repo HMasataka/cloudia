@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"time"
 
 	"github.com/HMasataka/cloudia/internal/config"
 	"github.com/HMasataka/cloudia/internal/service"
@@ -11,10 +14,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// healthClient is a dedicated HTTP client with a timeout for health checks.
+var healthClient = &http.Client{Timeout: 5 * time.Second}
+
 // GCSService implements service.Service and service.ProxyService for GCS emulation backed by MinIO.
 type GCSService struct {
-	cfg     config.AWSAuthConfig // MinIO credentials (reuses AWS config for access/secret key)
-	baseURL string               // MinIO base URL obtained from SharedBackend("minio-url")
+	cfg     config.AWSAuthConfig    // MinIO credentials (reuses AWS config for access/secret key)
+	baseURL string                  // MinIO base URL obtained from SharedBackend("minio-url")
+	proxy   *httputil.ReverseProxy  // cached reverse proxy to MinIO
 	store   service.Store
 	logger  *zap.Logger
 }
@@ -34,9 +41,24 @@ func NewGCSServiceWithEndpoint(cfg config.AWSAuthConfig, endpoint string, store 
 	return &GCSService{
 		cfg:     cfg,
 		baseURL: endpoint,
+		proxy:   buildReverseProxy(endpoint),
 		store:   store,
 		logger:  zap.NewNop(),
 	}
+}
+
+// buildReverseProxy creates a single-host reverse proxy targeting baseURL.
+// Returns nil if baseURL is invalid (handled gracefully at call sites).
+func buildReverseProxy(baseURL string) *httputil.ReverseProxy {
+	target, err := url.Parse(baseURL)
+	if err != nil {
+		return nil
+	}
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	proxy.Director = func(req *http.Request) {
+		// Director is a no-op; buildMinIORequest has already set the correct URL.
+	}
+	return proxy
 }
 
 // Name returns the GCP service name.
@@ -68,6 +90,7 @@ func (s *GCSService) Init(_ context.Context, deps service.ServiceDeps) error {
 	}
 
 	s.baseURL = baseURL
+	s.proxy = buildReverseProxy(baseURL)
 	return nil
 }
 
@@ -102,7 +125,7 @@ func (s *GCSService) Health(ctx context.Context) service.HealthStatus {
 		return service.HealthStatus{Healthy: false, Message: err.Error()}
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := healthClient.Do(req)
 	if err != nil {
 		return service.HealthStatus{Healthy: false, Message: err.Error()}
 	}

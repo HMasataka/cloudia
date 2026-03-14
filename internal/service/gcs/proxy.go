@@ -9,6 +9,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // createBucketRequest holds the GCS bucket creation request body.
@@ -151,9 +152,9 @@ func (s *GCSService) handleListBuckets(w http.ResponseWriter, r *http.Request) {
 
 	jsonBody, err := convertListBucketsXMLToJSON(rec.body.Bytes(), requestBaseURL(r))
 	if err != nil {
-		s.logger.Sugar().Warnf("gcs: list buckets XML conversion failed: %v", err)
-		// Return an empty list on conversion failure rather than an error.
-		jsonBody, _ = json.Marshal(map[string]interface{}{"kind": "storage#buckets", "items": []interface{}{}})
+		s.logger.Sugar().Errorf("gcs: list buckets XML conversion failed: %v", err)
+		writeGCSError(w, http.StatusBadGateway, "failed to parse backend response")
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -161,10 +162,16 @@ func (s *GCSService) handleListBuckets(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonBody) //nolint:errcheck
 }
 
+// maxCreateBucketBodySize is the maximum allowed request body size for bucket creation (1 MB).
+const maxCreateBucketBodySize = 1 * 1024 * 1024
+
+// maxObjectUploadBodySize is the maximum allowed request body size for object uploads (5 GB).
+const maxObjectUploadBodySize = 5 * 1024 * 1024 * 1024
+
 // handleCreateBucket proxies POST /storage/v1/b → PUT /{bucket}.
 func (s *GCSService) handleCreateBucket(w http.ResponseWriter, r *http.Request) {
 	// Read request body to get bucket name.
-	bodyBytes, err := io.ReadAll(r.Body)
+	bodyBytes, err := io.ReadAll(io.LimitReader(r.Body, maxCreateBucketBodySize))
 	if err != nil {
 		writeGCSError(w, http.StatusBadRequest, "failed to read request body")
 		return
@@ -193,13 +200,14 @@ func (s *GCSService) handleCreateBucket(w http.ResponseWriter, r *http.Request) 
 
 	s.updateStateOnSuccess(r, req.Name, http.MethodPost, rec.statusCode)
 
+	now := time.Now().UTC().Format(time.RFC3339)
 	jsonBody, _ := json.Marshal(gcsBucket{
 		Kind:         "storage#bucket",
 		ID:           req.Name,
 		Name:         req.Name,
 		SelfLink:     fmt.Sprintf("%s/storage/v1/b/%s", requestBaseURL(r), req.Name),
-		TimeCreated:  "",
-		Updated:      "",
+		TimeCreated:  now,
+		Updated:      now,
 		Location:     "US",
 		StorageClass: "STANDARD",
 	})
@@ -320,7 +328,7 @@ func (s *GCSService) handleObjectUpload(w http.ResponseWriter, r *http.Request, 
 	s3Path := "/" + bucket + "/" + objectName
 
 	// Read the body to sign correctly.
-	bodyBytes, err := io.ReadAll(r.Body)
+	bodyBytes, err := io.ReadAll(io.LimitReader(r.Body, maxObjectUploadBodySize))
 	if err != nil {
 		writeGCSError(w, http.StatusBadRequest, "failed to read request body")
 		return
@@ -342,7 +350,7 @@ func (s *GCSService) handleObjectUpload(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	jsonBody := convertObjectUploadToJSON(bucket, objectName, rec.header, requestBaseURL(r))
+	jsonBody := convertObjectUploadToJSON(bucket, objectName, rec.header, requestBaseURL(r), int64(len(bodyBytes)))
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -350,6 +358,7 @@ func (s *GCSService) handleObjectUpload(w http.ResponseWriter, r *http.Request, 
 }
 
 // handleObjectDownload streams GET /{bucket}/{object} response directly to the client.
+// On error, returns a GCS JSON error instead of the raw S3 XML error body.
 func (s *GCSService) handleObjectDownload(w http.ResponseWriter, r *http.Request, bucket, key string) {
 	s3Path := "/" + bucket + "/" + key
 
@@ -359,8 +368,23 @@ func (s *GCSService) handleObjectDownload(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Stream without buffering.
-	s.newReverseProxy().ServeHTTP(w, outReq)
+	rec := newBufferedResponseRecorder()
+	s.newReverseProxy().ServeHTTP(rec, outReq)
+
+	if rec.statusCode != http.StatusOK && rec.statusCode != http.StatusPartialContent {
+		// Convert S3 XML error to GCS JSON error.
+		writeGCSError(w, rec.statusCode, "object not found or access denied")
+		return
+	}
+
+	// Success: forward headers and stream the body.
+	for k, vv := range rec.header {
+		for _, v := range vv {
+			w.Header().Add(k, v)
+		}
+	}
+	w.WriteHeader(rec.statusCode)
+	w.Write(rec.body.Bytes()) //nolint:errcheck
 }
 
 // handleObjectMetadata proxies GET /storage/v1/b/{bucket}/o/{object} → HEAD /{bucket}/{object}
@@ -445,8 +469,9 @@ func (s *GCSService) handleListObjects(w http.ResponseWriter, r *http.Request, b
 
 	jsonBody, err := convertListObjectsXMLToJSON(rec.body.Bytes(), bucket, requestBaseURL(r))
 	if err != nil {
-		s.logger.Sugar().Warnf("gcs: list objects XML conversion failed: %v", err)
-		jsonBody, _ = json.Marshal(map[string]interface{}{"kind": "storage#objects", "items": []interface{}{}})
+		s.logger.Sugar().Errorf("gcs: list objects XML conversion failed: %v", err)
+		writeGCSError(w, http.StatusBadGateway, "failed to parse backend response")
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -495,7 +520,7 @@ func (s *GCSService) handleObjectCopy(w http.ResponseWriter, r *http.Request, sr
 		return
 	}
 
-	outReq.Header.Set("x-amz-copy-source", "/"+srcBucket+"/"+srcObject)
+	outReq.Header.Set("x-amz-copy-source", "/"+srcBucket+"/"+url.PathEscape(srcObject))
 	outReq.Body = http.NoBody
 	outReq.ContentLength = 0
 
@@ -507,7 +532,7 @@ func (s *GCSService) handleObjectCopy(w http.ResponseWriter, r *http.Request, sr
 		return
 	}
 
-	jsonBody := convertObjectUploadToJSON(destBucket, destObject, rec.header, requestBaseURL(r))
+	jsonBody := convertObjectUploadToJSON(destBucket, destObject, rec.header, requestBaseURL(r), -1)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -553,14 +578,9 @@ func (s *GCSService) buildMinIORequest(r *http.Request, method, path string, bod
 	return outReq
 }
 
-// newReverseProxy creates a reverse proxy targeting the MinIO backend.
+// newReverseProxy returns the cached reverse proxy targeting the MinIO backend.
 func (s *GCSService) newReverseProxy() *httputil.ReverseProxy {
-	target, _ := url.Parse(s.baseURL)
-	proxy := httputil.NewSingleHostReverseProxy(target)
-	proxy.Director = func(req *http.Request) {
-		// Director is a no-op; buildMinIORequest has already set the correct URL.
-	}
-	return proxy
+	return s.proxy
 }
 
 // forwardBufferedResponse writes a buffered recorder's response to the real ResponseWriter.

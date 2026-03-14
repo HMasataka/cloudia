@@ -1,6 +1,7 @@
 package s3
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -48,8 +49,13 @@ func (s *S3Service) updateStateOnSuccess(r *http.Request, statusCode int) {
 func (s *S3Service) updateBucketConfig(r *http.Request, bucket, configParam string) {
 	resource, err := s.store.Get(r.Context(), resourceKind, bucket)
 	if err != nil {
-		s.logger.Error("failed to get bucket from state store for config update",
-			zap.String("bucket", bucket), zap.String("config", configParam), zap.Error(err))
+		if errors.Is(err, models.ErrNotFound) {
+			s.logger.Warn("bucket not found in state store; skipping config update",
+				zap.String("bucket", bucket), zap.String("config", configParam))
+		} else {
+			s.logger.Error("failed to get bucket from state store for config update",
+				zap.String("bucket", bucket), zap.String("config", configParam), zap.Error(err))
+		}
 		return
 	}
 	if resource.Spec == nil {
