@@ -28,6 +28,7 @@ import (
 	iamsvc "github.com/HMasataka/cloudia/internal/service/iam"
 	s3svc "github.com/HMasataka/cloudia/internal/service/s3"
 	sqssvc "github.com/HMasataka/cloudia/internal/service/sqs"
+	dynamodbsvc "github.com/HMasataka/cloudia/internal/service/dynamodb"
 	ec2svc "github.com/HMasataka/cloudia/internal/service/ec2"
 	cloudsqlsvc "github.com/HMasataka/cloudia/internal/service/cloudsql"
 	elasticachesvc "github.com/HMasataka/cloudia/internal/service/elasticache"
@@ -179,6 +180,10 @@ func runStart(cmd *cobra.Command, args []string) error {
 
 	if err := registry.Register(cloudsqlsvc.NewCloudSQLService(logger)); err != nil {
 		return fmt.Errorf("failed to register cloudsql service: %w", err)
+	}
+
+	if err := registry.Register(dynamodbsvc.NewDynamoDBService(cfg.Auth.AWS, logger)); err != nil {
+		return fmt.Errorf("failed to register dynamodb service: %w", err)
 	}
 
 	if err := registry.InitAll(ctx, deps); err != nil {
