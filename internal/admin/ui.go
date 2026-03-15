@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"strconv"
 
+	dockertypes "github.com/docker/docker/api/types/container"
+
 	"github.com/HMasataka/cloudia/internal/state"
 	"github.com/HMasataka/cloudia/pkg/models"
 )
@@ -27,8 +29,12 @@ var templateFuncs = template.FuncMap{
 		return 1
 	},
 	"next": func(p int) int { return p + 1 },
-	"end_resource_index": func(page, perPage int) int {
-		return page * perPage
+	"mul":  func(a, b int) int { return a * b },
+	"shortID": func(s string) string {
+		if len(s) > 12 {
+			return s[:12]
+		}
+		return s
 	},
 }
 
@@ -49,7 +55,7 @@ func (h *Handler) renderTemplate(w http.ResponseWriter, r *http.Request, name st
 		"templates/" + name,
 	}
 
-	isHXRequest := r.Header.Get("HX-Request") == "true"
+	isHXRequest := r.Header.Get("HX-Request") != ""
 	if isHXRequest {
 		tmplFiles = []string{"templates/" + name}
 	}
@@ -62,7 +68,7 @@ func (h *Handler) renderTemplate(w http.ResponseWriter, r *http.Request, name st
 
 	entryTemplate := "layout.html"
 	if isHXRequest {
-		entryTemplate = name
+		entryTemplate = "content"
 	}
 
 	var buf bytes.Buffer
@@ -270,7 +276,7 @@ func (h *Handler) ResourceDetailPage(w http.ResponseWriter, r *http.Request) {
 // containersPage はコンテナビューのテンプレートデータです。
 type containersPage struct {
 	basePage
-	Containers interface{}
+	Containers []dockertypes.Summary
 	Error      string
 }
 

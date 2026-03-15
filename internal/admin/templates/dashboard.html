@@ -5,12 +5,20 @@
 
 <div class="stats-grid">
   <div class="stat-card">
-    <div class="value">{{.ResourceCount}}</div>
+    <div class="value">{{.TotalResources}}</div>
     <div class="label">Total Resources</div>
   </div>
   <div class="stat-card">
-    <div class="value">{{len .Services}}</div>
+    <div class="value">{{.TotalServices}}</div>
     <div class="label">Services</div>
+  </div>
+  <div class="stat-card">
+    <div class="value">{{.TotalContainers}}</div>
+    <div class="label">Containers</div>
+  </div>
+  <div class="stat-card">
+    <div class="value">{{.HealthyCount}}</div>
+    <div class="label">Healthy Services</div>
   </div>
 </div>
 

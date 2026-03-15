@@ -1,9 +1,9 @@
 {{template "layout.html" .}}
-{{define "title"}}Config — Cloudia Admin{{end}}
+{{define "title"}}Config &mdash; Cloudia Admin{{end}}
 {{define "content"}}
 <h1>Configuration</h1>
 <p style="color:#57606a;margin-bottom:16px;font-size:13px;">
-  Sensitive fields (AccessKey, SecretKey, CredentialsFile) are masked.
+  Sensitive fields (AccessKey, SecretKey, CredentialsFile) are masked as ***.
 </p>
 
 <div class="card">
@@ -32,8 +32,9 @@
 <div class="card">
   <div class="card-title">Docker</div>
   <table class="kv-table">
-    <tr><td>Host</td><td>{{.Config.Docker.Host}}</td></tr>
-    <tr><td>Network</td><td>{{.Config.Docker.Network}}</td></tr>
+    <tr><td>API Version</td><td>{{.Config.Docker.APIVersion}}</td></tr>
+    <tr><td>Network Name</td><td>{{.Config.Docker.NetworkName}}</td></tr>
+    <tr><td>Label Prefix</td><td>{{.Config.Docker.LabelPrefix}}</td></tr>
   </table>
 </div>
 
@@ -42,6 +43,7 @@
   <table class="kv-table">
     <tr><td>Level</td><td>{{.Config.Logging.Level}}</td></tr>
     <tr><td>Format</td><td>{{.Config.Logging.Format}}</td></tr>
+    <tr><td>Access Log</td><td>{{.Config.Logging.AccessLog}}</td></tr>
   </table>
 </div>
 
@@ -49,7 +51,17 @@
   <div class="card-title">State</div>
   <table class="kv-table">
     <tr><td>Backend</td><td>{{.Config.State.Backend}}</td></tr>
-    <tr><td>Path</td><td>{{.Config.State.Path}}</td></tr>
+    <tr><td>File Path</td><td>{{.Config.State.FilePath}}</td></tr>
+    <tr><td>Reconciliation Interval</td><td>{{.Config.State.ReconciliationInterval}}</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <div class="card-title">Limits</div>
+  <table class="kv-table">
+    <tr><td>Max Containers</td><td>{{.Config.Limits.MaxContainers}}</td></tr>
+    <tr><td>Default CPU</td><td>{{.Config.Limits.DefaultCPU}}</td></tr>
+    <tr><td>Default Memory</td><td>{{.Config.Limits.DefaultMemory}}</td></tr>
   </table>
 </div>
 {{end}}

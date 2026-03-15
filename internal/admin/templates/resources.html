@@ -5,9 +5,9 @@
 
 <div class="card">
   <form method="GET" action="/admin/ui/resources" class="filter-bar">
-    <input type="text" name="provider" placeholder="Provider" value="{{index .Query "provider"}}">
-    <input type="text" name="service"  placeholder="Service"  value="{{index .Query "service"}}">
-    <input type="text" name="kind"     placeholder="Kind"     value="{{index .Query "kind"}}">
+    <input type="text" name="provider" placeholder="Provider" value="{{.Filter.Provider}}">
+    <input type="text" name="service"  placeholder="Service"  value="{{.Filter.Service}}">
+    <input type="text" name="kind"     placeholder="Kind"     value="{{.Filter.Kind}}">
     <button type="submit" class="btn btn-primary">Filter</button>
     <a href="/admin/ui/resources" class="btn">Clear</a>
     <span style="margin-left:auto;color:#57606a;font-size:13px;">
@@ -53,11 +53,11 @@
 
   <div class="pagination">
     {{if gt .Page 1}}
-    <a href="?page={{decr .Page}}&per_page={{.PerPage}}" class="btn">&#8249; Prev</a>
+    <a href="?{{.QueryString}}&page={{prev .Page}}" class="btn">&#8249; Prev</a>
     {{end}}
     <span class="page-info">Page {{.Page}} &bull; {{.PerPage}} per page &bull; {{.Total}} total</span>
     {{if lt (mul .Page .PerPage) .Total}}
-    <a href="?page={{incr .Page}}&per_page={{.PerPage}}" class="btn">Next &#8250;</a>
+    <a href="?{{.QueryString}}&page={{next .Page}}" class="btn">Next &#8250;</a>
     {{end}}
   </div>
   {{else}}
