@@ -1,0 +1,61 @@
+{{template "layout.html" .}}
+{{define "title"}}Containers &mdash; Cloudia Admin{{end}}
+{{define "content"}}
+<h1>Containers</h1>
+
+{{if .Error}}
+<div class="card">
+  <p style="color:#cf222e;">Error: {{.Error}}</p>
+</div>
+{{end}}
+
+<div class="card">
+  {{if .Containers}}
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Image</th>
+        <th>Status</th>
+        <th>Names</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Containers}}
+      {{$shortID := shortID .ID}}
+      <tr>
+        <td><code>{{$shortID}}</code></td>
+        <td>{{.Image}}</td>
+        <td>{{.Status}}</td>
+        <td>{{range .Names}}{{.}} {{end}}</td>
+        <td>
+          <button class="btn"
+            data-logs-url="/admin/api/containers/{{.ID}}/logs"
+            data-logs-target="logs-{{$shortID}}"
+            data-lines="100">
+            View logs
+          </button>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="5" style="padding:0 12px 8px;">
+          <pre id="logs-{{$shortID}}" class="log-container" style="display:none;">(click "View logs" to load)</pre>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="empty-state">No managed containers found.</p>
+  {{end}}
+</div>
+<script>
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('[data-logs-url]');
+  if (!btn) return;
+  var target = document.getElementById(btn.getAttribute('data-logs-target'));
+  if (target) target.style.display = 'block';
+});
+</script>
+{{end}}

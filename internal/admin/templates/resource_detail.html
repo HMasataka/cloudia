@@ -1,0 +1,46 @@
+{{template "layout.html" .}}
+{{define "title"}}{{.Kind}} / {{.ID}} &mdash; Cloudia Admin{{end}}
+{{define "content"}}
+<div style="margin-bottom:12px;">
+  <a href="/admin/ui/resources" class="btn">&larr; Back to Resources</a>
+</div>
+<h1>{{.Kind}} / {{.ID}}</h1>
+
+<div class="card">
+  <div class="card-title">Resource Details</div>
+  <table class="kv-table">
+    <tbody>
+      <tr><td>Kind</td><td>{{.Kind}}</td></tr>
+      <tr><td>ID</td><td><code>{{.ID}}</code></td></tr>
+      <tr><td>Provider</td><td>{{.Provider}}</td></tr>
+      <tr><td>Service</td><td>{{.Service}}</td></tr>
+      <tr><td>Region</td><td>{{.Region}}</td></tr>
+      <tr><td>Status</td><td>{{.Status}}</td></tr>
+      <tr><td>Container ID</td><td>{{if .ContainerID}}<code>{{.ContainerID}}</code>{{else}}&mdash;{{end}}</td></tr>
+      <tr><td>Created At</td><td>{{.CreatedAt.Format "2006-01-02 15:04:05 UTC"}}</td></tr>
+      <tr><td>Updated At</td><td>{{.UpdatedAt.Format "2006-01-02 15:04:05 UTC"}}</td></tr>
+    </tbody>
+  </table>
+</div>
+
+{{if .Tags}}
+<div class="card">
+  <div class="card-title">Tags</div>
+  <table class="kv-table">
+    <tbody>
+      {{range $k, $v := .Tags}}
+      <tr><td>{{$k}}</td><td>{{$v}}</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}
+
+<div style="margin-top:8px;">
+  <button class="btn btn-danger"
+    data-delete-url="/admin/api/resources/{{.Kind}}/{{.ID}}"
+    data-confirm="Delete {{.Kind}} {{.ID}}? This cannot be undone.">
+    Delete Resource
+  </button>
+</div>
+{{end}}

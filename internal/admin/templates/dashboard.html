@@ -1,0 +1,52 @@
+{{template "layout.html" .}}
+{{define "title"}}Dashboard &mdash; Cloudia Admin{{end}}
+{{define "content"}}
+<h1>Dashboard</h1>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="value">{{.ResourceCount}}</div>
+    <div class="label">Total Resources</div>
+  </div>
+  <div class="stat-card">
+    <div class="value">{{len .Services}}</div>
+    <div class="label">Services</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">Service Health</div>
+  {{if .Services}}
+  <table>
+    <thead>
+      <tr>
+        <th>Key</th>
+        <th>Provider</th>
+        <th>Name</th>
+        <th>Status</th>
+        <th>Message</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Services}}
+      <tr>
+        <td>{{.Key}}</td>
+        <td>{{.Provider}}</td>
+        <td>{{.Name}}</td>
+        <td>
+          {{if .Health.Healthy}}
+            <span class="badge badge-ok">ok</span>
+          {{else}}
+            <span class="badge badge-err">error</span>
+          {{end}}
+        </td>
+        <td>{{.Health.Message}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="empty-state">No services registered.</p>
+  {{end}}
+</div>
+{{end}}

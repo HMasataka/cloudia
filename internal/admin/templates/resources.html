@@ -1,0 +1,67 @@
+{{template "layout.html" .}}
+{{define "title"}}Resources &mdash; Cloudia Admin{{end}}
+{{define "content"}}
+<h1>Resources</h1>
+
+<div class="card">
+  <form method="GET" action="/admin/ui/resources" class="filter-bar">
+    <input type="text" name="provider" placeholder="Provider" value="{{index .Query "provider"}}">
+    <input type="text" name="service"  placeholder="Service"  value="{{index .Query "service"}}">
+    <input type="text" name="kind"     placeholder="Kind"     value="{{index .Query "kind"}}">
+    <button type="submit" class="btn btn-primary">Filter</button>
+    <a href="/admin/ui/resources" class="btn">Clear</a>
+    <span style="margin-left:auto;color:#57606a;font-size:13px;">
+      {{.Total}} result{{if ne .Total 1}}s{{end}}
+    </span>
+  </form>
+
+  {{if .Resources}}
+  <table>
+    <thead>
+      <tr>
+        <th>Kind</th>
+        <th>ID</th>
+        <th>Provider</th>
+        <th>Service</th>
+        <th>Region</th>
+        <th>Status</th>
+        <th>Created</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Resources}}
+      <tr>
+        <td><a href="/admin/ui/resources/{{.Kind}}/{{.ID}}">{{.Kind}}</a></td>
+        <td><code>{{.ID}}</code></td>
+        <td>{{.Provider}}</td>
+        <td>{{.Service}}</td>
+        <td>{{.Region}}</td>
+        <td>{{.Status}}</td>
+        <td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
+        <td>
+          <button class="btn btn-danger"
+            data-delete-url="/admin/api/resources/{{.Kind}}/{{.ID}}"
+            data-confirm="Delete {{.Kind}} {{.ID}}?">
+            Delete
+          </button>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+
+  <div class="pagination">
+    {{if gt .Page 1}}
+    <a href="?page={{decr .Page}}&per_page={{.PerPage}}" class="btn">&#8249; Prev</a>
+    {{end}}
+    <span class="page-info">Page {{.Page}} &bull; {{.PerPage}} per page &bull; {{.Total}} total</span>
+    {{if lt (mul .Page .PerPage) .Total}}
+    <a href="?page={{incr .Page}}&per_page={{.PerPage}}" class="btn">Next &#8250;</a>
+    {{end}}
+  </div>
+  {{else}}
+  <p class="empty-state">No resources found.</p>
+  {{end}}
+</div>
+{{end}}

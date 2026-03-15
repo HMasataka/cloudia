@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{block "title" .}}Cloudia Admin{{end}}</title>
+  <link rel="stylesheet" href="/admin/static/style.css">
+</head>
+<body>
+<nav>
+  <span class="brand">Cloudia Admin</span>
+  <a href="/admin/ui">Dashboard</a>
+  <a href="/admin/ui/resources">Resources</a>
+  <a href="/admin/ui/containers">Containers</a>
+  <a href="/admin/ui/config">Config</a>
+</nav>
+<div id="notification"></div>
+<main>
+{{block "content" .}}{{end}}
+</main>
+<footer>Cloudia &mdash; Cloud emulator platform</footer>
+<script src="/admin/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+/* Cloudia Admin UI - minimal functional CSS */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #24292f;
+  background: #f6f8fa;
+}
+
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+nav {
+  background: #24292f;
+  color: #f0f6fc;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  height: 48px;
+  gap: 24px;
+}
+
+nav .brand { font-weight: 700; font-size: 16px; color: #f0f6fc; }
+nav a { color: #adbac7; font-size: 14px; }
+nav a:hover, nav a.active { color: #f0f6fc; text-decoration: none; }
+
+main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+
+h1 { font-size: 20px; font-weight: 600; margin-bottom: 16px; }
+h2 { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+
+.card {
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.card-title { font-weight: 600; margin-bottom: 8px; font-size: 14px; }
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  padding: 16px;
+  text-align: center;
+}
+.stat-card .value { font-size: 28px; font-weight: 700; color: #0969da; }
+.stat-card .label { font-size: 12px; color: #57606a; margin-top: 4px; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #d0d7de; }
+th { font-weight: 600; font-size: 12px; text-transform: uppercase; color: #57606a; background: #f6f8fa; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #f6f8fa; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #f6f8fa;
+  cursor: pointer;
+  text-decoration: none;
+  color: #24292f;
+}
+.btn:hover { background: #e9ecef; text-decoration: none; }
+.btn-danger { background: #fff; border-color: #cf222e; color: #cf222e; }
+.btn-danger:hover { background: #cf222e; color: #fff; }
+.btn-primary { background: #0969da; border-color: #0969da; color: #fff; }
+.btn-primary:hover { background: #0860ca; }
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.badge-ok { background: #dafbe1; color: #116329; }
+.badge-err { background: #ffebe9; color: #cf222e; }
+.badge-unknown { background: #f6f8fa; color: #57606a; border: 1px solid #d0d7de; }
+
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+input[type="text"], select {
+  padding: 5px 10px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  font-size: 13px;
+  background: #fff;
+}
+input[type="text"]:focus, select:focus {
+  outline: none;
+  border-color: #0969da;
+  box-shadow: 0 0 0 3px rgba(9,105,218,.1);
+}
+
+.pagination {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 16px;
+}
+.pagination .page-info { color: #57606a; font-size: 13px; padding: 0 8px; }
+
+pre {
+  background: #161b22;
+  color: #e6edf3;
+  padding: 16px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.log-container { min-height: 200px; }
+.empty-state { color: #57606a; text-align: center; padding: 32px; }
+
+details summary { cursor: pointer; font-weight: 600; }
+details[open] summary { margin-bottom: 8px; }
+
+.kv-table td:first-child { font-weight: 600; width: 200px; color: #57606a; }
+
+footer {
+  text-align: center;
+  color: #57606a;
+  font-size: 12px;
+  padding: 24px;
+  margin-top: 24px;
+  border-top: 1px solid #d0d7de;
+}
+
+#notification {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-weight: 500;
+  display: none;
+  z-index: 9999;
+}
+#notification.success { background: #dafbe1; color: #116329; border: 1px solid #34d058; }
+#notification.error   { background: #ffebe9; color: #cf222e; border: 1px solid #cf222e; }

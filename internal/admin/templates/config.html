@@ -1,0 +1,55 @@
+{{template "layout.html" .}}
+{{define "title"}}Config — Cloudia Admin{{end}}
+{{define "content"}}
+<h1>Configuration</h1>
+<p style="color:#57606a;margin-bottom:16px;font-size:13px;">
+  Sensitive fields (AccessKey, SecretKey, CredentialsFile) are masked.
+</p>
+
+<div class="card">
+  <div class="card-title">Server</div>
+  <table class="kv-table">
+    <tr><td>Host</td><td>{{.Config.Server.Host}}</td></tr>
+    <tr><td>Port</td><td>{{.Config.Server.Port}}</td></tr>
+    <tr><td>Timeout</td><td>{{.Config.Server.Timeout}}</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <div class="card-title">Auth</div>
+  <table class="kv-table">
+    <tr><td>Mode</td><td>{{.Config.Auth.Mode}}</td></tr>
+    <tr><td>AWS Access Key</td><td><code>{{.Config.Auth.AWS.AccessKey}}</code></td></tr>
+    <tr><td>AWS Secret Key</td><td><code>{{.Config.Auth.AWS.SecretKey}}</code></td></tr>
+    <tr><td>AWS Account ID</td><td>{{.Config.Auth.AWS.AccountID}}</td></tr>
+    <tr><td>AWS Region</td><td>{{.Config.Auth.AWS.Region}}</td></tr>
+    <tr><td>GCP Credentials File</td><td><code>{{.Config.Auth.GCP.CredentialsFile}}</code></td></tr>
+    <tr><td>GCP Project</td><td>{{.Config.Auth.GCP.Project}}</td></tr>
+    <tr><td>GCP Zone</td><td>{{.Config.Auth.GCP.Zone}}</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <div class="card-title">Docker</div>
+  <table class="kv-table">
+    <tr><td>Host</td><td>{{.Config.Docker.Host}}</td></tr>
+    <tr><td>Network</td><td>{{.Config.Docker.Network}}</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <div class="card-title">Logging</div>
+  <table class="kv-table">
+    <tr><td>Level</td><td>{{.Config.Logging.Level}}</td></tr>
+    <tr><td>Format</td><td>{{.Config.Logging.Format}}</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <div class="card-title">State</div>
+  <table class="kv-table">
+    <tr><td>Backend</td><td>{{.Config.State.Backend}}</td></tr>
+    <tr><td>Path</td><td>{{.Config.State.Path}}</td></tr>
+  </table>
+</div>
+{{end}}
