@@ -298,11 +298,15 @@ func (e *EC2Service) runInstances(ctx context.Context, req service.Request) (ser
 		}
 	}
 
-	// コンテナ数制限チェック
+	// コンテナ数・ディスク制限チェック
 	if e.limiter != nil {
 		if err := e.limiter.CheckContainerLimit(ctx); err != nil {
 			return errorResponse(http.StatusServiceUnavailable, "InsufficientInstanceCapacity",
 				"There is no capacity available for the requested instance type.")
+		}
+		if err := e.limiter.CheckDiskUsage(ctx); err != nil {
+			return errorResponse(http.StatusServiceUnavailable, "InsufficientInstanceCapacity",
+				"Insufficient disk capacity to launch the requested instance.")
 		}
 	}
 

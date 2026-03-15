@@ -123,9 +123,15 @@ func (r *RDSService) createDBInstance(ctx context.Context, req service.Request) 
 		return service.Response{StatusCode: http.StatusInternalServerError}, backendErr
 	}
 	host := backend.Host()
-	port := 3306
-	if p, err := strconv.Atoi(backend.Port()); err == nil {
-		port = p
+	portStr := backend.Port()
+	if portStr == "" {
+		return service.Response{StatusCode: http.StatusInternalServerError},
+			fmt.Errorf("rds: backend returned empty port for engine %s", engine)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return service.Response{StatusCode: http.StatusInternalServerError},
+			fmt.Errorf("rds: backend returned invalid port %q for engine %s: %w", portStr, engine, err)
 	}
 
 	now := time.Now().UTC()

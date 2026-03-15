@@ -77,8 +77,7 @@ type topicResponse struct {
 
 // listTopicsResponse は topic 一覧レスポンスです。
 type listTopicsResponse struct {
-	Topics        []topicResponse `json:"topics"`
-	NextPageToken string          `json:"nextPageToken,omitempty"`
+	Topics []topicResponse `json:"topics"`
 }
 
 // createSubscriptionRequest はサブスクリプション作成リクエストのボディです。
@@ -99,5 +98,4 @@ type subscriptionResponse struct {
 // listSubscriptionsResponse はサブスクリプション一覧レスポンスです。
 type listSubscriptionsResponse struct {
 	Subscriptions []subscriptionResponse `json:"subscriptions"`
-	NextPageToken string                 `json:"nextPageToken,omitempty"`
 }

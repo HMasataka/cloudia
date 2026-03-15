@@ -70,6 +70,9 @@ func (g *GCEService) insertInstance(ctx context.Context, req service.Request, pr
 		if limErr := g.limiter.CheckContainerLimit(ctx); limErr != nil {
 			return gceErrorResponse(http.StatusServiceUnavailable, "no capacity available for the requested machine type")
 		}
+		if limErr := g.limiter.CheckDiskUsage(ctx); limErr != nil {
+			return gceErrorResponse(http.StatusServiceUnavailable, "insufficient disk capacity to start the requested instance")
+		}
 	}
 
 	containerName := "cloudia-gce-" + project + "-" + zone + "-" + body.Name

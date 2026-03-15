@@ -2,7 +2,6 @@ package admin
 
 import (
 	"bytes"
-	"context"
 	"embed"
 	"fmt"
 	"html/template"
@@ -48,16 +47,10 @@ func (h *Handler) StaticFS() http.FileSystem {
 }
 
 // renderTemplate は templates/ からテンプレートをロードして bytes.Buffer に書き込みます。
-// HX-Request ヘッダがある場合は content ブロックのみをレンダリングします。
 func (h *Handler) renderTemplate(w http.ResponseWriter, r *http.Request, name string, data any) {
 	tmplFiles := []string{
 		"templates/layout.html",
 		"templates/" + name,
-	}
-
-	isHXRequest := r.Header.Get("HX-Request") != ""
-	if isHXRequest {
-		tmplFiles = []string{"templates/" + name}
 	}
 
 	tmpl, err := template.New("").Funcs(templateFuncs).ParseFS(embeddedFS, tmplFiles...)
@@ -66,13 +59,8 @@ func (h *Handler) renderTemplate(w http.ResponseWriter, r *http.Request, name st
 		return
 	}
 
-	entryTemplate := "layout.html"
-	if isHXRequest {
-		entryTemplate = "content"
-	}
-
 	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, entryTemplate, data); err != nil {
+	if err := tmpl.ExecuteTemplate(&buf, "layout.html", data); err != nil {
 		http.Error(w, "template render error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -99,7 +87,7 @@ type dashboardPage struct {
 
 // DashboardPage は GET /admin/ui のハンドラです。
 func (h *Handler) DashboardPage(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx := r.Context()
 
 	var services []serviceInfo
 	var healthyCount int
@@ -167,7 +155,7 @@ type resourcesPage struct {
 
 // ResourcesPage は GET /admin/ui/resources のハンドラです。
 func (h *Handler) ResourcesPage(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx := r.Context()
 
 	q := r.URL.Query()
 	provider := q.Get("provider")
@@ -251,7 +239,7 @@ type resourceDetailPage struct {
 
 // ResourceDetailPage は GET /admin/ui/resources/{kind}/{id} のハンドラです。
 func (h *Handler) ResourceDetailPage(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx := r.Context()
 
 	kind := r.PathValue("kind")
 	id := r.PathValue("id")
@@ -282,7 +270,7 @@ type containersPage struct {
 
 // ContainersPage は GET /admin/ui/containers のハンドラです。
 func (h *Handler) ContainersPage(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx := r.Context()
 
 	data := containersPage{basePage: basePage{ActivePage: "containers"}}
 

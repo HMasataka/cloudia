@@ -229,16 +229,8 @@ func (c *Client) ContainerLogs(ctx context.Context, containerID string, lines in
 	var stdout, stderr bytes.Buffer
 	if _, err := stdcopy.StdCopy(&stdout, &stderr, rc); err != nil {
 		// Fall back to raw read if stdcopy fails (e.g. non-multiplexed stream).
-		rc2, err2 := c.cli.ContainerLogs(ctx, containerID, container.LogsOptions{
-			ShowStdout: true,
-			ShowStderr: true,
-			Tail:       tail,
-		})
-		if err2 != nil {
-			return "", fmt.Errorf("container logs: %w", err2)
-		}
-		defer rc2.Close()
-		raw, err2 := io.ReadAll(rc2)
+		// rc is already open; read remaining bytes directly without a second API call.
+		raw, err2 := io.ReadAll(rc)
 		if err2 != nil {
 			return "", fmt.Errorf("container logs read: %w", err2)
 		}

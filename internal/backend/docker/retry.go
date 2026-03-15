@@ -99,30 +99,3 @@ func isPortConflictError(err error) bool {
 		strings.Contains(msg, "Bind for") && strings.Contains(msg, "failed")
 }
 
-// RunContainerWithPortRetry is like RunContainer but retries on port conflict errors.
-// On each retry, it reallocates a new host port via portAllocator if one is provided.
-func (c *Client) RunContainerWithPortRetry(ctx context.Context, cfg ContainerConfig, maxRetries int, portAllocator func(cfg *ContainerConfig) error) (string, error) {
-	var lastErr error
-	for attempt := 0; attempt <= maxRetries; attempt++ {
-		if attempt > 0 {
-			if !isPortConflictError(lastErr) {
-				return "", lastErr
-			}
-			c.logger.Warn("port conflict detected, retrying container run",
-				zap.Int("attempt", attempt),
-				zap.Error(lastErr),
-			)
-			if portAllocator != nil {
-				if err := portAllocator(&cfg); err != nil {
-					return "", err
-				}
-			}
-		}
-		id, err := c.RunContainer(ctx, cfg)
-		if err == nil {
-			return id, nil
-		}
-		lastErr = err
-	}
-	return "", lastErr
-}

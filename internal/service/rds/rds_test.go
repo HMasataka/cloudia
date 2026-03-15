@@ -13,11 +13,11 @@ import (
 )
 
 // newTestRDSService は Docker/MySQL 依存なしでサービスを構築します。
-// RDBBackend は空のまま（Init を呼ばない）で store を直接注入します。
+// RDBBackend はスタブ（固定ホスト/ポート）として初期化します。
 func newTestRDSService(t *testing.T) (*RDSService, *state.MemoryStore) {
 	t.Helper()
 	store := state.NewMemoryStore()
-	mysqlBackend := rdb.NewRDBBackend(&rdb.MySQLEngine{}, zap.NewNop())
+	mysqlBackend := rdb.NewRDBBackendStub(&rdb.MySQLEngine{}, "localhost", "3306", zap.NewNop())
 	svc := &RDSService{
 		backends: map[string]*rdb.RDBBackend{
 			"mysql": mysqlBackend,
@@ -30,12 +30,12 @@ func newTestRDSService(t *testing.T) (*RDSService, *state.MemoryStore) {
 }
 
 // newTestRDSServiceWithPostgres は MySQL と PostgreSQL の両バックエンドを持つサービスを構築します。
-// どちらのバックエンドも Init を呼ばない（Docker 依存なし）。
+// どちらのバックエンドもスタブ（固定ホスト/ポート）として初期化します。
 func newTestRDSServiceWithPostgres(t *testing.T) (*RDSService, *state.MemoryStore) {
 	t.Helper()
 	store := state.NewMemoryStore()
-	mysqlBackend := rdb.NewRDBBackend(&rdb.MySQLEngine{}, zap.NewNop())
-	postgresBackend := rdb.NewRDBBackend(&rdb.PostgreSQLEngine{}, zap.NewNop())
+	mysqlBackend := rdb.NewRDBBackendStub(&rdb.MySQLEngine{}, "localhost", "3306", zap.NewNop())
+	postgresBackend := rdb.NewRDBBackendStub(&rdb.PostgreSQLEngine{}, "localhost", "5432", zap.NewNop())
 	svc := &RDSService{
 		backends: map[string]*rdb.RDBBackend{
 			"mysql":    mysqlBackend,

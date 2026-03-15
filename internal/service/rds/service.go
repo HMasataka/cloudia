@@ -62,10 +62,6 @@ func (r *RDSService) Init(ctx context.Context, deps service.ServiceDeps) error {
 		deps.Registry.SharedBackend("rdb-mysql-host", mysqlBackend.Host())
 		deps.Registry.SharedBackend("rdb-mysql-port", mysqlBackend.Port())
 		deps.Registry.SharedBackend("rdb-mysql-password", mysqlBackend.RootPassword())
-		// 後方互換のため旧キーでも二重登録する
-		deps.Registry.SharedBackend("mysql-host", mysqlBackend.Host())
-		deps.Registry.SharedBackend("mysql-port", mysqlBackend.Port())
-		deps.Registry.SharedBackend("mysql-password", mysqlBackend.RootPassword())
 	}
 
 	return nil

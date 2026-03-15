@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -27,7 +26,12 @@ type resourcesListResponse struct {
 // ListResourcesHandler は GET /admin/api/resources を処理します。
 // query: provider, service, kind, page, per_page
 func (h *Handler) ListResourcesHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	if h.store == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "store not available"})
+		return
+	}
+
+	ctx := r.Context()
 
 	q := r.URL.Query()
 	provider := q.Get("provider")
@@ -89,7 +93,12 @@ func (h *Handler) ListResourcesHandler(w http.ResponseWriter, r *http.Request) {
 
 // GetResourceHandler は GET /admin/api/resources/{kind}/{id} を処理します。
 func (h *Handler) GetResourceHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	if h.store == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "store not available"})
+		return
+	}
+
+	ctx := r.Context()
 
 	kind := r.PathValue("kind")
 	id := r.PathValue("id")
@@ -110,7 +119,12 @@ func (h *Handler) GetResourceHandler(w http.ResponseWriter, r *http.Request) {
 // DeleteResourceHandler は DELETE /admin/api/resources/{kind}/{id} を処理します。
 // ContainerID があれば先に docker.StopContainer → docker.RemoveContainer を実行してから Store.Delete します。
 func (h *Handler) DeleteResourceHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	if h.store == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "store not available"})
+		return
+	}
+
+	ctx := r.Context()
 
 	kind := r.PathValue("kind")
 	id := r.PathValue("id")

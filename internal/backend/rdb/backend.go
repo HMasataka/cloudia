@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	mysqlServiceLabel   = "rdb"
+	rdbServiceLabel     = "rdb"
 	rdbNetwork          = "cloudia"
 	healthCheckMaxTries = 60
 	healthCheckInterval = time.Second
@@ -38,6 +38,17 @@ func NewRDBBackend(engine Engine, logger *zap.Logger) *RDBBackend {
 	return &RDBBackend{
 		engine: engine,
 		logger: logger,
+	}
+}
+
+// NewRDBBackendStub creates a pre-initialised RDBBackend with fixed host/port values.
+// Use this in tests to avoid Docker dependencies.
+func NewRDBBackendStub(engine Engine, host, port string, logger *zap.Logger) *RDBBackend {
+	return &RDBBackend{
+		engine: engine,
+		logger: logger,
+		host:   host,
+		port:   port,
 	}
 }
 
@@ -77,7 +88,7 @@ func (b *RDBBackend) Init(ctx context.Context, deps service.ServiceDeps) error {
 		Image: b.engine.Image(),
 		Name:  b.engine.ContainerName(),
 		Labels: map[string]string{
-			docker.LabelService: mysqlServiceLabel,
+			docker.LabelService: rdbServiceLabel,
 		},
 		Env: envMap,
 		Ports: map[string]string{

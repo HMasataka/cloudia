@@ -121,6 +121,10 @@ func (h *ServiceHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	req.Service = ResolveServiceName(provider, req.Service, req.Action)
 
+	// 解決済みサービス名をコンテキストに付与（冪等性ミドルウェアが参照する）
+	ctx = middleware.WithServiceName(ctx, req.Service)
+	r = r.WithContext(ctx)
+
 	if info := middleware.MetricsInfoFromContext(r.Context()); info != nil {
 		info.Service = req.Service
 		info.Action = req.Action

@@ -2,6 +2,7 @@ package middleware_test
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -29,7 +30,7 @@ func makeRequest(method, path, idempKey, gcpKey, svc string, body []byte) *http.
 }
 
 func TestIdempotency_NoKey_PassThrough(t *testing.T) {
-	store := middleware.NewIdempotencyStore()
+	store := middleware.NewIdempotencyStore(context.Background())
 	calls := 0
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -54,7 +55,7 @@ func TestIdempotency_NoKey_PassThrough(t *testing.T) {
 }
 
 func TestIdempotency_SameKeyAndBody_ReturnsCache(t *testing.T) {
-	store := middleware.NewIdempotencyStore()
+	store := middleware.NewIdempotencyStore(context.Background())
 	calls := 0
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -90,7 +91,7 @@ func TestIdempotency_SameKeyAndBody_ReturnsCache(t *testing.T) {
 }
 
 func TestIdempotency_SameKeyDifferentBody_Returns400(t *testing.T) {
-	store := middleware.NewIdempotencyStore()
+	store := middleware.NewIdempotencyStore(context.Background())
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated)
 		_, _ = w.Write([]byte(`{"id":"abc"}`))
@@ -119,7 +120,7 @@ func TestIdempotency_SameKeyDifferentBody_Returns400(t *testing.T) {
 }
 
 func TestIdempotency_GCPKey_Works(t *testing.T) {
-	store := middleware.NewIdempotencyStore()
+	store := middleware.NewIdempotencyStore(context.Background())
 	calls := 0
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -154,7 +155,7 @@ func TestIdempotency_GCPKey_Works(t *testing.T) {
 }
 
 func TestIdempotency_DifferentServices_DontCollide(t *testing.T) {
-	store := middleware.NewIdempotencyStore()
+	store := middleware.NewIdempotencyStore(context.Background())
 	callCount := 0
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		callCount++

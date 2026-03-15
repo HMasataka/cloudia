@@ -51,8 +51,7 @@ func (c *CloudSQLService) Init(_ context.Context, deps service.ServiceDeps) erro
 	}
 
 	// MySQL バックエンドの接続情報を取得（必須）。
-	// 新キー rdb-mysql-host を優先し、旧キー mysql-host にフォールバックする（後方互換）。
-	mysqlHost, mysqlPort, err := c.resolveBackendAddr(deps.Registry, "rdb-mysql-host", "rdb-mysql-port", "mysql-host", "mysql-port")
+	mysqlHost, mysqlPort, err := c.resolveBackendAddr(deps.Registry, "rdb-mysql-host", "rdb-mysql-port")
 	if err != nil {
 		return fmt.Errorf("cloudsql: mysql backend: %w", err)
 	}
@@ -71,22 +70,15 @@ func (c *CloudSQLService) Init(_ context.Context, deps service.ServiceDeps) erro
 }
 
 // resolveBackendAddr は SharedBackend から host/port を取得します。
-// newHostKey/newPortKey を優先し、フォールバックとして oldHostKey/oldPortKey も試みます。
-func (c *CloudSQLService) resolveBackendAddr(registry *service.Registry, newHostKey, newPortKey, oldHostKey, oldPortKey string) (host, port string, err error) {
-	host = sharedBackendString(registry, newHostKey)
+func (c *CloudSQLService) resolveBackendAddr(registry *service.Registry, hostKey, portKey string) (host, port string, err error) {
+	host = sharedBackendString(registry, hostKey)
 	if host == "" {
-		host = sharedBackendString(registry, oldHostKey)
-	}
-	if host == "" {
-		return "", "", fmt.Errorf("shared backend %q (or %q) not found; RDS service must be initialized before Cloud SQL", newHostKey, oldHostKey)
+		return "", "", fmt.Errorf("shared backend %q not found; RDS service must be initialized before Cloud SQL", hostKey)
 	}
 
-	port = sharedBackendString(registry, newPortKey)
+	port = sharedBackendString(registry, portKey)
 	if port == "" {
-		port = sharedBackendString(registry, oldPortKey)
-	}
-	if port == "" {
-		return "", "", fmt.Errorf("shared backend %q (or %q) not found; RDS service must be initialized before Cloud SQL", newPortKey, oldPortKey)
+		return "", "", fmt.Errorf("shared backend %q not found; RDS service must be initialized before Cloud SQL", portKey)
 	}
 
 	return host, port, nil

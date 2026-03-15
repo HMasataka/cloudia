@@ -60,10 +60,9 @@ func TestDashboardPage(t *testing.T) {
 	}
 }
 
-func TestDashboardPage_HXRequest(t *testing.T) {
+func TestDashboardPage_FullPage(t *testing.T) {
 	h := newUIHandler()
 	req := httptest.NewRequest(http.MethodGet, "/admin/ui", nil)
-	req.Header.Set("HX-Request", "true")
 	rec := httptest.NewRecorder()
 	h.DashboardPage(rec, req)
 
@@ -71,9 +70,9 @@ func TestDashboardPage_HXRequest(t *testing.T) {
 		t.Errorf("expected 200, got %d", rec.Code)
 	}
 	body := rec.Body.String()
-	// フラグメントレスポンスなので <html> タグは含まれない
-	if strings.Contains(body, "<html") {
-		t.Error("HX-Request response should not contain <html> tag")
+	// 常にフルページ（layout.html）をレンダリングする
+	if !strings.Contains(body, "<html") {
+		t.Error("expected full page response with <html> tag")
 	}
 }
 

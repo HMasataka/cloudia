@@ -2,7 +2,6 @@ package admin
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/HMasataka/cloudia/internal/config"
 )
@@ -40,14 +39,6 @@ type maskedGCPConfig struct {
 	CredentialsFile string `json:"credentials_file"`
 	Project         string `json:"project"`
 	Zone            string `json:"zone"`
-}
-
-// serverConfigJSON は time.Duration を秒文字列に変換して JSON 出力するためのラッパーです。
-type serverConfigJSON struct {
-	Host    string        `json:"host"`
-	Port    int           `json:"port"`
-	Timeout time.Duration `json:"timeout"`
-	IMDS    config.IMDSConfig `json:"imds"`
 }
 
 // GetConfigHandler は GET /admin/api/config を処理します。
