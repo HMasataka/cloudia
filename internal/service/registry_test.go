@@ -365,6 +365,82 @@ func TestRegistry_MetaByProvider_OnlyRegisteredWithMeta(t *testing.T) {
 	}
 }
 
+func TestRegistry_ListServices_ReturnsAllServices(t *testing.T) {
+	reg := service.NewRegistry()
+
+	// Register のみ
+	svcS3 := newMockService("aws", "s3")
+	if err := reg.Register(svcS3); err != nil {
+		t.Fatalf("Register failed: %v", err)
+	}
+
+	// RegisterWithMeta
+	svcEC2 := newMockService("aws", "ec2")
+	metaEC2 := service.ServiceMeta{
+		Provider:    "aws",
+		Name:        "ec2",
+		AWSProtocol: "query",
+	}
+	if err := reg.RegisterWithMeta(svcEC2, metaEC2); err != nil {
+		t.Fatalf("RegisterWithMeta failed: %v", err)
+	}
+
+	result := reg.ListServices()
+
+	if len(result) != 2 {
+		t.Fatalf("expected 2 services, got %d: %v", len(result), result)
+	}
+
+	// Register のみのサービスは Provider/Name だけ設定される
+	s3Meta, ok := result["aws:s3"]
+	if !ok {
+		t.Fatal("aws:s3 not found in ListServices result")
+	}
+	if s3Meta.Provider != "aws" || s3Meta.Name != "s3" {
+		t.Errorf("unexpected aws:s3 meta: %+v", s3Meta)
+	}
+	if s3Meta.AWSProtocol != "" {
+		t.Errorf("expected empty AWSProtocol for Register-only service, got %q", s3Meta.AWSProtocol)
+	}
+
+	// RegisterWithMeta のサービスは完全なメタデータが返る
+	ec2Meta, ok := result["aws:ec2"]
+	if !ok {
+		t.Fatal("aws:ec2 not found in ListServices result")
+	}
+	if ec2Meta.AWSProtocol != "query" {
+		t.Errorf("expected AWSProtocol=query for ec2, got %q", ec2Meta.AWSProtocol)
+	}
+}
+
+func TestRegistry_ListServices_ReturnsCopy(t *testing.T) {
+	reg := service.NewRegistry()
+
+	svc := newMockService("aws", "s3")
+	if err := reg.Register(svc); err != nil {
+		t.Fatalf("Register failed: %v", err)
+	}
+
+	result := reg.ListServices()
+
+	// 戻り値を変更しても Registry に影響しない
+	delete(result, "aws:s3")
+
+	result2 := reg.ListServices()
+	if _, ok := result2["aws:s3"]; !ok {
+		t.Error("modification of ListServices result should not affect Registry")
+	}
+}
+
+func TestRegistry_ListServices_EmptyRegistry(t *testing.T) {
+	reg := service.NewRegistry()
+
+	result := reg.ListServices()
+	if len(result) != 0 {
+		t.Errorf("expected empty map for empty Registry, got %v", result)
+	}
+}
+
 func TestRegistry_ConcurrentRegisterAndResolve(t *testing.T) {
 	reg := service.NewRegistry()
 	var wg sync.WaitGroup

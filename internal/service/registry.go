@@ -170,6 +170,30 @@ func (r *Registry) ShutdownAll(ctx context.Context) error {
 	return firstErr
 }
 
+// ListServices は登録済み全サービスのメタデータを返します。
+// キーは "provider:name" 形式です。
+// RegisterWithMeta で登録されたサービスはそのメタデータを、
+// Register のみで登録されたサービスは Provider()/Name() から構築したメタデータを返します。
+// 戻り値は内部 map のコピーであり、呼び出し元の変更が Registry に影響しません。
+func (r *Registry) ListServices() map[string]ServiceMeta {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	result := make(map[string]ServiceMeta, len(r.services))
+	for key, svc := range r.services {
+		if meta, ok := r.metas[key]; ok {
+			result[key] = meta
+		} else {
+			result[key] = ServiceMeta{
+				Provider: svc.Provider(),
+				Name:     svc.Name(),
+			}
+		}
+	}
+
+	return result
+}
+
 // HealthAll は全サービスのヘルスステータスを収集して返します。
 // キーは "provider:name" 形式です。
 func (r *Registry) HealthAll(ctx context.Context) map[string]HealthStatus {
