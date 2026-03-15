@@ -25,14 +25,14 @@ provider "google" {
   zone    = "us-central1-a"
 
   credentials = jsonencode({
-    type               = "service_account"
-    project_id         = var.project_id
-    private_key_id     = "test"
-    private_key        = "test"
-    client_email       = "test@cloudia-local.iam.gserviceaccount.com"
-    client_id          = "test"
-    auth_uri           = "https://accounts.google.com/o/oauth2/auth"
-    token_uri          = "${var.cloudia_endpoint}/token"
+    type           = "service_account"
+    project_id     = var.project_id
+    private_key_id = "test"
+    private_key    = "test"
+    client_email   = "test@cloudia-local.iam.gserviceaccount.com"
+    client_id      = "test"
+    auth_uri       = "https://accounts.google.com/o/oauth2/auth"
+    token_uri      = "${var.cloudia_endpoint}/token"
   })
 }
 

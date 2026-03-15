@@ -20,18 +20,18 @@ CLI → Gateway → Auth (SigV4/OAuth) → Protocol (XML/JSON) → Service → B
 
 ## 対応サービス
 
-| AWS | GCP | バックエンド |
-|-----|-----|-------------|
-| S3 | Cloud Storage | MinIO |
-| EC2 | Compute Engine | Docker |
-| DynamoDB | - | Docker (DynamoDB Local) |
-| Lambda | - | Docker |
-| RDS (MySQL/PostgreSQL) | Cloud SQL | MySQL / PostgreSQL |
-| ElastiCache | Memorystore | Redis |
-| SQS | Pub/Sub | インメモリ |
-| EKS | GKE | k3s |
-| IAM | - | インメモリ |
-| VPC / SecurityGroup | - | インメモリ |
+| AWS                    | GCP            | バックエンド            |
+| ---------------------- | -------------- | ----------------------- |
+| S3                     | Cloud Storage  | MinIO                   |
+| EC2                    | Compute Engine | Docker                  |
+| DynamoDB               | -              | Docker (DynamoDB Local) |
+| Lambda                 | -              | Docker                  |
+| RDS (MySQL/PostgreSQL) | Cloud SQL      | MySQL / PostgreSQL      |
+| ElastiCache            | Memorystore    | Redis                   |
+| SQS                    | Pub/Sub        | インメモリ              |
+| EKS                    | GKE            | k3s                     |
+| IAM                    | -              | インメモリ              |
+| VPC / SecurityGroup    | -              | インメモリ              |
 
 ## 必要要件
 
