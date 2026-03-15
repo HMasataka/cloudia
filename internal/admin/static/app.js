@@ -55,11 +55,13 @@
       .then(function (res) { return res.json(); })
       .then(function (body) {
         target.textContent = body.logs || '(no logs)';
+        target.style.display = 'block';
         btn.textContent = 'Refresh logs';
         btn.disabled = false;
       })
       .catch(function (err) {
         target.textContent = 'Error: ' + err.message;
+        target.style.display = 'block';
         btn.textContent = 'Retry';
         btn.disabled = false;
       });

@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
@@ -34,11 +33,9 @@ func NewHandler(dockerClient *docker.Client, store state.Store, registry *servic
 
 // ServicesHandler は登録済みサービスの一覧を返します。
 func (h *Handler) ServicesHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
-
 	var statuses map[string]service.HealthStatus
 	if h.registry != nil {
-		statuses = h.registry.HealthAll(ctx)
+		statuses = h.registry.HealthAll(r.Context())
 	} else {
 		statuses = map[string]service.HealthStatus{}
 	}

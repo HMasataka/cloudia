@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/HMasataka/cloudia/internal/service"
@@ -18,14 +17,12 @@ type serviceInfo struct {
 // ListServicesHandler は GET /admin/api/services を処理します。
 // Registry.ListServices と Registry.HealthAll を結合します。
 func (h *Handler) ListServicesHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
-
 	var metas map[string]service.ServiceMeta
 	var statuses map[string]service.HealthStatus
 
 	if h.registry != nil {
 		metas = h.registry.ListServices()
-		statuses = h.registry.HealthAll(ctx)
+		statuses = h.registry.HealthAll(r.Context())
 	} else {
 		metas = map[string]service.ServiceMeta{}
 		statuses = map[string]service.HealthStatus{}
