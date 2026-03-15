@@ -204,8 +204,8 @@ func startTestServer() (*testServer, error) {
 	}
 
 	serviceHandler := gateway.NewServiceHandler(verifiers, codecs, registry, logger)
-	adminHandler := admin.NewHandler(dockerClient, logger)
-	router := gateway.NewRouter(adminHandler, serviceHandler, logger, cfg.Server.Timeout)
+	adminHandler := admin.NewHandler(dockerClient, memStore, registry, cfg, logger)
+	router := gateway.NewRouter(ctx, adminHandler, serviceHandler, logger, cfg.Server.Timeout)
 	server := gateway.NewServer(cfg.Server, cfg.Endpoints, cfg.Metrics, router, logger)
 
 	if startErr := server.Start(); startErr != nil {

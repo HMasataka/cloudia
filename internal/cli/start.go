@@ -216,16 +216,17 @@ func runStart(cmd *cobra.Command, args []string) error {
 	}
 
 	serviceHandler := gateway.NewServiceHandler(verifiers, codecs, registry, logger)
-	adminHandler := admin.NewHandler(dockerClient, logger)
-	router := gateway.NewRouter(adminHandler, serviceHandler, logger, cfg.Server.Timeout)
+	adminHandler := admin.NewHandler(dockerClient, memStore, registry, cfg, logger)
+
+	sigCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	router := gateway.NewRouter(sigCtx, adminHandler, serviceHandler, logger, cfg.Server.Timeout)
 	server := gateway.NewServerWithStore(cfg.Server, cfg.Endpoints, cfg.Metrics, router, memStore, logger)
 
 	if err := server.Start(); err != nil {
 		return fmt.Errorf("failed to start server: %w", err)
 	}
-
-	sigCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	reconcileInterval := cfg.State.ReconciliationInterval
 	if reconcileInterval <= 0 {

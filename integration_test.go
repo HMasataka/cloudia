@@ -50,12 +50,12 @@ func TestIntegration_GatewayServer(t *testing.T) {
 	defer logger.Sync()
 
 	// c. サーバー構築
-	adminHandler := admin.NewHandler(nil, logger)
 	verifiers := map[string]auth.Verifier{}
 	codecs := map[string]protocol.Codec{}
 	registry := service.NewRegistry()
+	adminHandler := admin.NewHandler(nil, nil, registry, cfg, logger)
 	serviceHandler := gateway.NewServiceHandler(verifiers, codecs, registry, logger)
-	router := gateway.NewRouter(adminHandler, serviceHandler, logger, cfg.Server.Timeout)
+	router := gateway.NewRouter(context.Background(), adminHandler, serviceHandler, logger, cfg.Server.Timeout)
 	server := gateway.NewServer(cfg.Server, cfg.Endpoints, cfg.Metrics, router, logger)
 
 	// d. サーバー起動

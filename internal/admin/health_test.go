@@ -12,7 +12,7 @@ import (
 
 func TestHealthHandler(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
-	h := admin.NewHandler(nil, logger)
+	h := admin.NewHandler(nil, nil, nil, nil, logger)
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	rec := httptest.NewRecorder()
