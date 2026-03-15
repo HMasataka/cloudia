@@ -5,10 +5,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
 )
@@ -37,16 +37,16 @@ type ContainerConfig struct {
 
 // RunContainer pulls an image, creates a container, and starts it.
 // It returns the container ID on success.
+// Port conflict errors are returned immediately so callers can reallocate ports and retry.
 func (c *Client) RunContainer(ctx context.Context, cfg ContainerConfig) (string, error) {
-	reader, err := c.cli.ImagePull(ctx, cfg.Image, image.PullOptions{})
-	if err != nil {
+	if err := c.PullImageWithRetry(ctx, cfg.Image); err != nil {
 		return "", err
 	}
-	defer reader.Close()
-	if _, err := io.Copy(io.Discard, reader); err != nil {
-		return "", err
-	}
+	return c.createAndStartContainer(ctx, cfg)
+}
 
+// createAndStartContainer creates and starts a container from the given config.
+func (c *Client) createAndStartContainer(ctx context.Context, cfg ContainerConfig) (string, error) {
 	// Merge managed labels with caller-supplied labels.
 	labels := make(map[string]string, len(cfg.Labels)+1)
 	for k, v := range cfg.Labels {
@@ -199,6 +199,54 @@ func (c *Client) FindContainerByServiceLabel(ctx context.Context, serviceValue s
 		return nil, nil
 	}
 	return &containers[0], nil
+}
+
+// ContainerLogs returns the last N lines of logs from the specified container.
+// If lines is 0 or negative, it defaults to 100. If lines exceeds 10000, it is capped at 10000.
+// Non-UTF-8 bytes in the output are replaced with the Unicode replacement character.
+func (c *Client) ContainerLogs(ctx context.Context, containerID string, lines int) (string, error) {
+	const defaultLines = 100
+	const maxLines = 10000
+
+	if lines <= 0 {
+		lines = defaultLines
+	}
+	if lines > maxLines {
+		lines = maxLines
+	}
+
+	tail := fmt.Sprintf("%d", lines)
+	rc, err := c.cli.ContainerLogs(ctx, containerID, container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Tail:       tail,
+	})
+	if err != nil {
+		return "", fmt.Errorf("container logs: %w", err)
+	}
+	defer rc.Close()
+
+	var stdout, stderr bytes.Buffer
+	if _, err := stdcopy.StdCopy(&stdout, &stderr, rc); err != nil {
+		// Fall back to raw read if stdcopy fails (e.g. non-multiplexed stream).
+		rc2, err2 := c.cli.ContainerLogs(ctx, containerID, container.LogsOptions{
+			ShowStdout: true,
+			ShowStderr: true,
+			Tail:       tail,
+		})
+		if err2 != nil {
+			return "", fmt.Errorf("container logs: %w", err2)
+		}
+		defer rc2.Close()
+		raw, err2 := io.ReadAll(rc2)
+		if err2 != nil {
+			return "", fmt.Errorf("container logs read: %w", err2)
+		}
+		return strings.ToValidUTF8(string(raw), "\uFFFD"), nil
+	}
+
+	combined := stdout.String() + stderr.String()
+	return strings.ToValidUTF8(combined, "\uFFFD"), nil
 }
 
 // ExecInContainer runs cmd inside the specified container and returns the combined stdout output.
