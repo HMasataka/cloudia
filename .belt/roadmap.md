@@ -243,10 +243,10 @@ CLI → Gateway → Auth (SigV4/OAuth) → Protocol (XML/JSON変換) → Service
 **ゴール**: RDS と Cloud SQL で PostgreSQL エンジンを選択可能にする
 **完動品としての価値**: `engine: postgres` 指定で RDS/Cloud SQL インスタンスを作成し、PostgreSQL に接続してクエリ実行可能
 
-- [ ] RDB バックエンド拡張 (`internal/backend/rdb/backend.go`): エンジン種別（mysql/postgres）に応じた Docker イメージ選択（`postgres:16`）。PostgreSQL 固有の初期化（ユーザー、DB 作成）。ヘルスチェック（`pg_isready`）
-- [ ] RDS サービス拡張 (`internal/service/aws/rds/`): `Engine: "postgres"` 対応。パラメータグループの PostgreSQL 互換バリデーション。設定ファイルに postgres 用イメージ追加
-- [ ] Cloud SQL サービス拡張 (`internal/service/gcp/cloudsql/`): `databaseVersion: "POSTGRES_16"` 対応
-- [ ] テスト: Terraform `aws_db_instance` で engine="postgres" の apply テスト。PostgreSQL 接続・クエリテスト
+- [x] RDB バックエンド拡張: PostgreSQLEngine 実装 (postgres:16, TCP ダイアルヘルスチェック)、Engine に ContainerName() 追加、コンテナ名パラメータ化
+- [x] RDS サービス拡張: マルチエンジン対応 (map[string]*RDBBackend + 遅延起動)、Engine バリデーション、エンジン別パスワード制約・ポート・バージョン
+- [x] Cloud SQL サービス拡張: databaseVersion プレフィックス (MYSQL_/POSTGRES_) によるバックエンド振り分け
+- [x] テスト: PostgreSQL CRUD、不正 Engine バリデーション、MySQL/PostgreSQL 共存、CloudSQL POSTGRES_16
 
 ---
 
